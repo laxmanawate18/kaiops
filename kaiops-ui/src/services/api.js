@@ -16,6 +16,9 @@ class ApiService {
         const token = localStorage.getItem('auth_token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
+          console.log('Token added to request:', config.url)
+        } else {
+          console.warn('No token found in localStorage for:', config.url)
         }
         return config
       },
@@ -27,9 +30,13 @@ class ApiService {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
+          console.warn('401 Unauthorized - logging out')
           localStorage.removeItem('auth_token')
           localStorage.removeItem('user_data')
-          window.location.href = '/login'
+          // Only redirect if we're not already on login page
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login'
+          }
         }
         return Promise.reject(error)
       }

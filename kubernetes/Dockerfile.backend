@@ -5,14 +5,23 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
     curl \
+    git \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip install --upgrade pip setuptools wheel
 
 # Copy requirements
 COPY sre-agent-backend/requirements.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies with verbose output
+RUN pip install --no-cache-dir -r requirements.txt || pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY sre-agent-backend/ .
@@ -27,6 +36,9 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Expose port
 EXPOSE 8000
+
+# Run application
+CMD ["python", "run_server.py"]
 
 # Run application
 CMD ["python", "run_server.py"]

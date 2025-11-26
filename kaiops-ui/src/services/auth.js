@@ -43,6 +43,9 @@ class AuthService {
     localStorage.setItem('auth_token', authData.access_token)
     localStorage.setItem('user_data', JSON.stringify(authData.user))
     
+    console.log('Login successful - Token stored:', !!authData.access_token)
+    console.log('User data stored:', authData.user)
+    
     return authData
   }
 

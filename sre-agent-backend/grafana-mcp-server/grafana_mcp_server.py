@@ -27,6 +27,13 @@ class GrafanaMCPServer:
 
     def make_grafana_request(self, endpoint: str, method: str = "GET", params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Make a request to the Grafana API."""
+        # Check if Grafana is properly configured
+        if not self.grafana_url or self.grafana_url == "http://localhost:3000":
+            return {"error": "Grafana not configured"}
+        
+        if not self.service_account_token:
+            return {"error": "Grafana authentication token not configured"}
+        
         url = f"{self.grafana_url}/api{endpoint}"
 
         headers = {
@@ -39,17 +46,21 @@ class GrafanaMCPServer:
 
         try:
             if method == "GET":
-                response = requests.get(url, headers=headers, params=params, timeout=10)
+                response = requests.get(url, headers=headers, params=params, timeout=10, verify=False)
             elif method == "POST":
-                response = requests.post(url, headers=headers, json=params, timeout=10)
+                response = requests.post(url, headers=headers, json=params, timeout=10, verify=False)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
 
             response.raise_for_status()
             return response.json()
 
+        except requests.exceptions.ConnectionError:
+            return {"error": f"Cannot connect to Grafana at {self.grafana_url}. Service unavailable."}
+        except requests.exceptions.Timeout:
+            return {"error": f"Grafana request timeout"}
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Grafana API request failed: {str(e)}")
+            return {"error": f"Grafana API request failed: {str(e)}"}
 
 
 # Create FastMCP server

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { API_BASE_URL } from '../constants/apiConstants'
 
 export const useADKStream = (chatSessionId) => {
   const { user } = useAuth()
@@ -9,7 +10,8 @@ export const useADKStream = (chatSessionId) => {
   const [timelineEvents, setTimelineEvents] = useState([])
 
   const eventSourceRef = useRef(null)
-  const apiUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  // Extract base URL without /api/v1 for ADK stream endpoint
+  const apiUrl = API_BASE_URL.replace('/api/v1', '')
   const appName = import.meta.env.VITE_APP_NAME || 'sre_agent'
   const userId = user?.id || 'anonymous-user'
   

@@ -30,6 +30,13 @@ class ArgocdMCPServer:
 
     def make_argocd_request(self, endpoint: str, method: str = "GET", params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Make a request to the ArgoCD API."""
+        # Check if ArgoCD is properly configured
+        if not self.argocd_url or self.argocd_url == "http://localhost:8080":
+            return {"error": "ArgoCD not configured"}
+        
+        if not self.argocd_token:
+            return {"error": "ArgoCD authentication token not configured"}
+        
         url = f"{self.argocd_url}/api/v1{endpoint}"
 
         headers = {
@@ -52,8 +59,12 @@ class ArgocdMCPServer:
             response.raise_for_status()
             return response.json()
 
+        except requests.exceptions.ConnectionError:
+            return {"error": f"Cannot connect to ArgoCD at {self.argocd_url}. Service unavailable."}
+        except requests.exceptions.Timeout:
+            return {"error": f"ArgoCD request timeout"}
         except requests.exceptions.RequestException as e:
-            raise Exception(f"ArgoCD API request failed: {str(e)}")
+            return {"error": f"ArgoCD API request failed: {str(e)}"}
 
 
 # Create FastMCP server

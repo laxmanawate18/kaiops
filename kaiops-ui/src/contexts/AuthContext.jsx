@@ -14,26 +14,17 @@ export const AuthProvider = ({ children }) => {
 
   const initializeAuth = async () => {
     try {
-      if (authService.isAuthenticated()) {
-        // Try to get from localStorage first
+      // Check if we have a token
+      const token = authService.getToken()
+      if (token) {
+        // Get user data from localStorage
         const cachedUser = authService.getCurrentUserData()
         if (cachedUser) {
           setUser(cachedUser)
         }
-        
-        // Then fetch fresh data from server
-        try {
-          const userData = await authService.getCurrentUser()
-          setUser(userData)
-        } catch (error) {
-          // If server fetch fails but we have cached data, keep using it
-          if (!cachedUser) {
-            authService.logout()
-          }
-        }
       }
     } catch (error) {
-      authService.logout()
+      console.error('Auth initialization error:', error)
     } finally {
       setIsLoading(false)
     }
