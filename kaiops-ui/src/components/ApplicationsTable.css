@@ -1,0 +1,168 @@
+.apps-table-container {
+  background: radial-gradient(circle at top, rgba(56, 189, 248, 0.12), rgba(15, 23, 42, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin: 12px 0;
+  color: #e5e7eb;
+}
+
+.apps-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.apps-table-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  font-size: 0.8rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+  border-radius: 10px;
+}
+
+.apps-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.apps-table th,
+.apps-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.apps-table th {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.apps-table tbody tr:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.app-name {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.status-pill.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+}
+
+.status-pill.inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.status-pill.pending {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fcd34d;
+}
+
+.status-pill.unknown {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5f5;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.pager {
+  padding: 6px 12px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.pager:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pager-info {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.integrations,
+.stats {
+  margin-top: 16px;
+  background: rgba(15, 23, 42, 0.6);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.integrations h4,
+.stats h4 {
+  margin: 0 0 8px 0;
+  font-size: 0.9rem;
+  color: #cbd5f5;
+}
+
+.integrations ul,
+.stats ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.integrations li,
+.stats li {
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  color: #e2e8f0;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 20px;
+  color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  .apps-table th,
+  .apps-table td {
+    padding: 8px;
+    font-size: 0.75rem;
+  }
+
+  .apps-table-container {
+    padding: 16px;
+  }
+}
