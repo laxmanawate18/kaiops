@@ -29,12 +29,16 @@ COPY kubernetes/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built files from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Copy the entrypoint script
+COPY kubernetes/update-api-url.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://localhost:80/index.html || exit 1
+    CMD wget --quiet --tries=1 --spider http://localhost:80/index.html || exit 1 
 
 # Expose port
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start with entrypoint script to update API URL at runtime
+ENTRYPOINT ["/entrypoint.sh"]

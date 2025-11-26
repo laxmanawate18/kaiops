@@ -68,5 +68,5 @@ export const DatasetType = {
   BOTH: "both"
 }
 
-// API Base URL
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
+// API Base URL - Use relative path, nginx will proxy to backend
+export const API_BASE_URL = '/api/v1'

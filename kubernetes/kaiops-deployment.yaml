@@ -154,6 +154,11 @@ spec:
         - secretRef:
             name: kaiops-secrets
         
+        env:
+        # Persistent SECRET_KEY for JWT token consistency across pod restarts
+        - name: SECRET_KEY
+          value: "feNrat7fzesX0y7ExsVI9D6L4/NDm4Yh/GhB/nhHYjc="
+        
         resources:
           requests:
             memory: "256Mi"
