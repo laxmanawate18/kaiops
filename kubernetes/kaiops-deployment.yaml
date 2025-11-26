@@ -16,14 +16,15 @@ data:
   # API Configuration
   API_PORT: "8000"
   API_HOST: "0.0.0.0"
-  API_URL: "http://34.70.16.109:8000"
+  API_URL: "http://kaiops-sre.searceinc.net:8000"
   
   # Application
   AGENT_DIR: "/app/agents"
   SESSION_DB_URL: "sqlite:///./adk_sessions.db"
   
   # Allowed origins for CORS
-  ALLOWED_ORIGINS: "http://34.44.48.149,http://34.70.16.109:8000,http://localhost:3000,http://localhost:5173,http://localhost,http://localhost:8000,http://kaiops-frontend,http://127.0.0.1:3000,http://127.0.0.1:8000"
+  # Frontend domain mapped to 34.44.48.149
+  ALLOWED_ORIGINS: "http://kaiops-sre.searceinc.net,https://kaiops-sre.searceinc.net,http://34.44.48.149,http://34.70.16.109:8000,http://localhost:3000,http://localhost:5173,http://localhost,http://localhost:8000,http://kaiops-frontend,http://127.0.0.1:3000,http://127.0.0.1:8000"
   
   # Logging
   LOG_LEVEL: "INFO"
