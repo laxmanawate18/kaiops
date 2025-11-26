@@ -32,10 +32,10 @@ class ArgocdMCPServer:
         """Make a request to the ArgoCD API."""
         # Check if ArgoCD is properly configured
         if not self.argocd_url or self.argocd_url == "http://localhost:8080":
-            return {"error": "ArgoCD not configured"}
+            return {"error": "ArgoCD not configured. Please set ARGOCD_URL and ARGOCD_AUTH_TOKEN."}
         
         if not self.argocd_token:
-            return {"error": "ArgoCD authentication token not configured"}
+            return {"error": f"ArgoCD authentication token not configured for {self.argocd_url}"}
         
         url = f"{self.argocd_url}/api/v1{endpoint}"
 
@@ -59,12 +59,22 @@ class ArgocdMCPServer:
             response.raise_for_status()
             return response.json()
 
-        except requests.exceptions.ConnectionError:
-            return {"error": f"Cannot connect to ArgoCD at {self.argocd_url}. Service unavailable."}
-        except requests.exceptions.Timeout:
-            return {"error": f"ArgoCD request timeout"}
-        except requests.exceptions.RequestException as e:
-            return {"error": f"ArgoCD API request failed: {str(e)}"}
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Cannot connect to ArgoCD at {self.argocd_url}. Check if server is accessible. Error: {str(e)}"
+            print(f"[!] {error_msg}", file=sys.stderr)
+            return {"error": error_msg}
+        except requests.exceptions.Timeout as e:
+            error_msg = f"ArgoCD request timeout at {self.argocd_url}. Server may be slow or unreachable."
+            print(f"[!] {error_msg}", file=sys.stderr)
+            return {"error": error_msg}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"ArgoCD API HTTP Error: {response.status_code} {response.reason}"
+            print(f"[!] {error_msg}: {response.text}", file=sys.stderr)
+            return {"error": error_msg}
+        except Exception as e:
+            error_msg = f"ArgoCD API request failed: {str(e)}"
+            print(f"[!] {error_msg}", file=sys.stderr)
+            return {"error": error_msg}
 
 
 # Create FastMCP server

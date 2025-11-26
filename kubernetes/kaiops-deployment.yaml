@@ -47,11 +47,11 @@ data:
   AZURE_SUBSCRIPTION_ID: "5a309391-54e8-4597-98ca-1c35c2c9dc09"
   AZURE_TENANT_ID: "6fbdbe21-98c4-4c02-9fd6-32d368caf60e"
   
-  # ArgoCD Configuration (set to localhost if not deployed)
-  ARGOCD_URL: "http://localhost:8080"
+  # ArgoCD Configuration
+  ARGOCD_URL: "https://52.230.225.226"
   
-  # Grafana Configuration (set to localhost if not deployed)
-  GRAFANA_URL: "http://localhost:3000"
+  # Grafana Configuration
+  GRAFANA_URL: "http://172.168.254.97"
   GRAFANA_ORG_ID: "1"
   
   # Cache Configuration

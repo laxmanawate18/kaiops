@@ -29,10 +29,10 @@ class GrafanaMCPServer:
         """Make a request to the Grafana API."""
         # Check if Grafana is properly configured
         if not self.grafana_url or self.grafana_url == "http://localhost:3000":
-            return {"error": "Grafana not configured"}
+            return {"error": "Grafana not configured. Please set GRAFANA_URL and GRAFANA_SERVICE_ACCOUNT_TOKEN."}
         
         if not self.service_account_token:
-            return {"error": "Grafana authentication token not configured"}
+            return {"error": f"Grafana authentication token not configured for {self.grafana_url}"}
         
         url = f"{self.grafana_url}/api{endpoint}"
 
@@ -55,12 +55,22 @@ class GrafanaMCPServer:
             response.raise_for_status()
             return response.json()
 
-        except requests.exceptions.ConnectionError:
-            return {"error": f"Cannot connect to Grafana at {self.grafana_url}. Service unavailable."}
-        except requests.exceptions.Timeout:
-            return {"error": f"Grafana request timeout"}
-        except requests.exceptions.RequestException as e:
-            return {"error": f"Grafana API request failed: {str(e)}"}
+        except requests.exceptions.ConnectionError as e:
+            error_msg = f"Cannot connect to Grafana at {self.grafana_url}. Check if server is accessible. Error: {str(e)}"
+            print(f"[!] {error_msg}", file=sys.stderr)
+            return {"error": error_msg}
+        except requests.exceptions.Timeout as e:
+            error_msg = f"Grafana request timeout at {self.grafana_url}. Server may be slow or unreachable."
+            print(f"[!] {error_msg}", file=sys.stderr)
+            return {"error": error_msg}
+        except requests.exceptions.HTTPError as e:
+            error_msg = f"Grafana API HTTP Error: {response.status_code} {response.reason}"
+            print(f"[!] {error_msg}: {response.text}", file=sys.stderr)
+            return {"error": error_msg}
+        except Exception as e:
+            error_msg = f"Grafana API request failed: {str(e)}"
+            print(f"[!] {error_msg}", file=sys.stderr)
+            return {"error": error_msg}
 
 
 # Create FastMCP server
