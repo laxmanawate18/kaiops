@@ -6,6 +6,7 @@ python-multipart
 python-jose
 opik
 pymongo
+sqlalchemy-mongo
 passlib
 pydantic[email]
 argon2_cffi
