@@ -120,7 +120,7 @@ metadata:
   labels:
     app: kaiops-backend
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -251,7 +251,7 @@ metadata:
   labels:
     app: kaiops-frontend
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -337,7 +337,7 @@ spec:
     kind: Deployment
     name: kaiops-backend
   minReplicas: 1
-  maxReplicas: 3
+  maxReplicas: 1
   metrics:
   - type: Resource
     resource:
@@ -364,8 +364,8 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: kaiops-frontend
-  minReplicas: 2
-  maxReplicas: 4
+  minReplicas: 1
+  maxReplicas: 1
   metrics:
   - type: Resource
     resource:
