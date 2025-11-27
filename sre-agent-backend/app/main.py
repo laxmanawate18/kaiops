@@ -39,7 +39,12 @@ warnings.filterwarnings("ignore", category=UserWarning, message=".*non-text part
 
 # Configuration
 AGENT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "agents"))
-SESSION_DB_URL = "sqlite:///./adk_sessions.db"
+
+# Use MongoDB for ADK session storage instead of SQLite for distributed deployments
+# MongoDB is shared across all pods, SQLite files are pod-local and not shared
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+MONGODB_DB = os.getenv("MONGODB_DB", "sre_agent_db")
+SESSION_DB_URL = f"{MONGODB_URI}/{MONGODB_DB}?retryWrites=false"  # ADK MongoDB session storage
 
 # CORS allowed origins - restrict wildcard in production
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else [

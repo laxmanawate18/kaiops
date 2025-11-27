@@ -93,17 +93,14 @@ export const useADKStream = (chatSessionId) => {
         }
       )
       
-      if (response.ok || response.status === 400) {
-        sessionCreatedRef.current = true
-      } else if (response.status === 404) {
-        // If session creation endpoint doesn't exist, mark as created anyway
-        // The /run endpoint will handle session creation
+      // Accept both 200 OK and 409 Conflict (session already exists on shared storage)
+      if (response.ok || response.status === 409 || response.status === 404) {
         sessionCreatedRef.current = true
       } else {
         throw new Error(`Session creation failed: ${response.status}`)
       }
     } catch (err) {
-      // If session creation fails, still proceed - /run endpoint will handle it
+      // If session creation fails, still proceed - session might be in MongoDB
       sessionCreatedRef.current = true
     }
   }, [apiUrl, appName, userId])
@@ -113,90 +110,56 @@ export const useADKStream = (chatSessionId) => {
     setIsLoading(true)
     addMessage(message, 'user')
 
-    let retries = 3
-    let lastError = null
+    try {
+      await ensureSession()
 
-    while (retries > 0) {
-      try {
-        await ensureSession()
-
-        const response = await fetch(`${apiUrl}/run`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            appName: appName,
-            userId: userId,
-            sessionId: sessionIdRef.current,
-            newMessage: toContent(message)
-          })
+      const response = await fetch(`${apiUrl}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appName: appName,
+          userId: userId,
+          sessionId: sessionIdRef.current,
+          newMessage: toContent(message)
         })
+      })
 
-        // If session not found, reset session tracking and retry
-        if (response.status === 404) {
-          const errorData = await response.json().catch(() => ({}))
-          if (errorData.detail && errorData.detail.includes('Session not found')) {
-            sessionCreatedRef.current = false
-            retries--
-            if (retries > 0) {
-              // Wait a bit before retrying
-              await new Promise(resolve => setTimeout(resolve, 500))
-              continue
-            }
-          }
-        }
-
-        if (!response.ok) {
-          const errorDetail = await response.json().catch(() => ({}))
-          throw new Error(`API Error: ${response.status} - ${JSON.stringify(errorDetail)}`)
-        }
-
-        const result = await response.json()
-
-        // Handle direct event array response
-        if (Array.isArray(result)) {
-          result.forEach(event => {
-            addTimelineEvent(event)
-            if (event.content?.parts) {
-              event.content.parts.forEach(part => {
-                if (part.text) addMessage(part.text, 'agent')
-              })
-            }
-          })
-          setIsLoading(false)
-          return { type: 'handled_direct_response' }
-        }
-
-        // Handle streaming-based response
-        const runId = result.run_id || result.invocationId || result.id
-        if (runId) {
-          startStreaming(runId)
-          setIsLoading(false)
-          return { type: 'streaming_started', runId }
-        }
-
-        throw new Error('Response was not an event array and contained no run_id.')
-      } catch (err) {
-        lastError = err
-        retries--
-        if (retries > 0) {
-          // Wait before retrying on other errors too
-          await new Promise(resolve => setTimeout(resolve, 500))
-          continue
-        }
-        break
+      if (!response.ok) {
+        const errorDetail = await response.json().catch(() => ({}))
+        throw new Error(`API Error: ${response.status} - ${JSON.stringify(errorDetail)}`)
       }
-    }
 
-    // If we exhausted retries, show the error
-    if (lastError) {
-      setError(lastError.message)
-      addMessage(`// ERROR: Unable to send message.\n${lastError.message}`, 'agent')
+      const result = await response.json()
+
+      // Handle direct event array response
+      if (Array.isArray(result)) {
+        result.forEach(event => {
+          addTimelineEvent(event)
+          if (event.content?.parts) {
+            event.content.parts.forEach(part => {
+              if (part.text) addMessage(part.text, 'agent')
+            })
+          }
+        })
+        setIsLoading(false)
+        return { type: 'handled_direct_response' }
+      }
+
+      // Handle streaming-based response
+      const runId = result.run_id || result.invocationId || result.id
+      if (runId) {
+        startStreaming(runId)
+        setIsLoading(false)
+        return { type: 'streaming_started', runId }
+      }
+
+      throw new Error('Response was not an event array and contained no run_id.')
+    } catch (err) {
+      setError(err.message)
+      addMessage(`// ERROR: Unable to send message.\n${err.message}`, 'agent')
       setIsLoading(false)
-      return { type: 'error', error: lastError.message }
+      return { type: 'error', error: err.message }
     }
-
-    setIsLoading(false)
-    return { type: 'unknown_error' }
   }, [apiUrl, appName, userId, ensureSession, addMessage, addTimelineEvent])
 
   const startStreaming = useCallback((runId) => {

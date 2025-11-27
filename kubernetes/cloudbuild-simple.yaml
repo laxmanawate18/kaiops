@@ -8,9 +8,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/${PROJECT_ID}/kaiops-backend:latest'
-      - '-t'
-      - 'gcr.io/${PROJECT_ID}/kaiops-backend:${COMMIT_SHA}'
+      - 'gcr.io/$PROJECT_ID/kaiops-backend:latest'
       - '-f'
       - 'kubernetes/Dockerfile.backend'
       - '.'
@@ -21,7 +19,7 @@ steps:
     id: 'push-backend'
     args:
       - 'push'
-      - 'gcr.io/${PROJECT_ID}/kaiops-backend:latest'
+      - 'gcr.io/$PROJECT_ID/kaiops-backend:latest'
     waitFor: ['build-backend']
 
   # Step 3: Build frontend Docker image
@@ -30,9 +28,7 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/${PROJECT_ID}/kaiops-frontend:latest'
-      - '-t'
-      - 'gcr.io/${PROJECT_ID}/kaiops-frontend:${COMMIT_SHA}'
+      - 'gcr.io/$PROJECT_ID/kaiops-frontend:latest'
       - '--build-arg'
       - 'VITE_API_URL=http://api.kaiops-sre.searceinc.net/api/v1'
       - '-f'
@@ -45,13 +41,13 @@ steps:
     id: 'push-frontend'
     args:
       - 'push'
-      - 'gcr.io/${PROJECT_ID}/kaiops-frontend:latest'
+      - 'gcr.io/$PROJECT_ID/kaiops-frontend:latest'
     waitFor: ['build-frontend']
 
 # Images to be pushed to the registry
 images:
-  - 'gcr.io/${PROJECT_ID}/kaiops-backend:latest'
-  - 'gcr.io/${PROJECT_ID}/kaiops-frontend:latest'
+  - 'gcr.io/$PROJECT_ID/kaiops-backend:latest'
+  - 'gcr.io/$PROJECT_ID/kaiops-frontend:latest'
 
 # Build configuration
 options:
