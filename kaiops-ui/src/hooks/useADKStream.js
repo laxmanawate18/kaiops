@@ -117,11 +117,10 @@ export const useADKStream = (chatSessionId) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          app_name: appName,
-          user_id: userId,
-          session_id: sessionIdRef.current,
-          streaming: true,
-          new_message: toContent(message)
+          appName: appName,
+          userId: userId,
+          sessionId: sessionIdRef.current,
+          newMessage: toContent(message)
         })
       })
 
