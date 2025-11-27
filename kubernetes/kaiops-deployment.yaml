@@ -41,7 +41,7 @@ data:
   GCP_DEFAULT_NAMESPACE: "default"
   GCP_LOG_RETENTION_DAYS: "30"
   GCP_MONITORING_ENABLED: "true"
-  GCP_MOCK_MODE: "true"
+  GCP_MOCK_MODE: "false"
   GOOGLE_PROJECT_ID: "carbon-relic-479214-c1"
   
   # AWS Configuration
