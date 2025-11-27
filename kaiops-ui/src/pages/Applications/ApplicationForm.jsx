@@ -37,6 +37,7 @@ const ApplicationForm = () => {
     application_criticality: 'medium',
     
     // GCP Fields
+    gcp_project_id: '',
     gcp_log_resource: '',
     gke_cluster_name: '',
     deployment_name: '',
@@ -44,6 +45,7 @@ const ApplicationForm = () => {
     namespace: '',
     
     // Azure Fields
+    azure_subscription_id: '',
     aks_cluster_name: '',
     azure_deployment_name: '',
     azure_pod_name: '',
@@ -57,6 +59,7 @@ const ApplicationForm = () => {
     ingress_namespace: '',
     
     // AWS Fields
+    aws_account_id: '',
     eks_cluster_name: '',
     cloudwatch_log_group_path: '',
     aws_deployment_name: '',
@@ -96,6 +99,7 @@ const ApplicationForm = () => {
         grafana_alert_name: app.grafana_alert_name || '',
         description: app.description || '',
         application_criticality: app.application_criticality || 'medium',
+        gcp_project_id: app.gcp_project_id || '',
         gcp_log_resource: app.gcp_log_resource || '',
         gke_cluster_name: app.gke_cluster_name || '',
         deployment_name: app.deployment_name || '',
@@ -186,6 +190,7 @@ const ApplicationForm = () => {
 
     // Cloud-specific validation
     if (formData.cloud_provider === 'gcp') {
+      if (!formData.gcp_project_id.trim()) errors.gcp_project_id = 'GCP Project ID is required';
       if (!formData.gcp_log_resource.trim()) errors.gcp_log_resource = 'GCP log resource is required';
       if (!formData.gke_cluster_name.trim()) errors.gke_cluster_name = 'GKE cluster name is required';
       if (!formData.deployment_name.trim()) errors.deployment_name = 'Deployment name is required';
@@ -194,6 +199,7 @@ const ApplicationForm = () => {
     }
 
     if (formData.cloud_provider === 'azure') {
+      if (!formData.azure_subscription_id.trim()) errors.azure_subscription_id = 'Azure Subscription ID is required';
       if (!formData.aks_cluster_name.trim()) errors.aks_cluster_name = 'AKS cluster name is required';
       if (!formData.azure_deployment_name.trim()) errors.azure_deployment_name = 'Deployment name is required';
       if (!formData.azure_pod_name.trim()) errors.azure_pod_name = 'Pod name is required';
@@ -207,6 +213,7 @@ const ApplicationForm = () => {
     }
 
     if (formData.cloud_provider === 'aws') {
+      if (!formData.aws_account_id.trim()) errors.aws_account_id = 'AWS Account ID is required';
       if (!formData.eks_cluster_name.trim()) errors.eks_cluster_name = 'EKS cluster name is required';
       if (!formData.cloudwatch_log_group_path.trim()) errors.cloudwatch_log_group_path = 'CloudWatch log group path is required';
       if (!formData.aws_deployment_name.trim()) errors.aws_deployment_name = 'Deployment name is required';
@@ -265,12 +272,14 @@ const ApplicationForm = () => {
 
       // Add cloud-specific fields
       if (formData.cloud_provider === 'gcp') {
+        submitData.gcp_project_id = formData.gcp_project_id.trim();
         submitData.gcp_log_resource = formData.gcp_log_resource.trim();
         submitData.gke_cluster_name = formData.gke_cluster_name.trim();
         submitData.deployment_name = formData.deployment_name.trim();
         submitData.pod_name = formData.pod_name.trim();
         submitData.namespace = formData.namespace.trim();
       } else if (formData.cloud_provider === 'azure') {
+        submitData.azure_subscription_id = formData.azure_subscription_id.trim();
         submitData.aks_cluster_name = formData.aks_cluster_name.trim();
         submitData.azure_deployment_name = formData.azure_deployment_name.trim();
         submitData.azure_pod_name = formData.azure_pod_name.trim();
@@ -282,6 +291,7 @@ const ApplicationForm = () => {
         submitData.ingress_public_ip = formData.ingress_public_ip.trim();
         submitData.ingress_namespace = formData.ingress_namespace.trim();
       } else if (formData.cloud_provider === 'aws') {
+        submitData.aws_account_id = formData.aws_account_id.trim();
         submitData.eks_cluster_name = formData.eks_cluster_name.trim();
         submitData.cloudwatch_log_group_path = formData.cloudwatch_log_group_path.trim();
         submitData.aws_deployment_name = formData.aws_deployment_name.trim();
@@ -640,6 +650,25 @@ const ApplicationForm = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
+                    <label htmlFor="gcp_project_id" className={labelClass}>
+                      GCP Project ID <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="gcp_project_id"
+                      name="gcp_project_id"
+                      value={formData.gcp_project_id}
+                      onChange={handleChange}
+                      placeholder="carbon-relic-479214-c1"
+                      className={inputClass(!!validationErrors.gcp_project_id)}
+                    />
+                    {validationErrors.gcp_project_id && (
+                      <p className={errorTextClass}>{validationErrors.gcp_project_id}</p>
+                    )}
+                    <p className={helperTextClass}>Your GCP project ID (6-30 chars, lowercase)</p>
+                  </div>
+
+                  <div>
                     <label htmlFor="gcp_log_resource" className={labelClass}>
                       GCP Log Resource <span className="text-rose-400">*</span>
                     </label>
@@ -745,6 +774,25 @@ const ApplicationForm = () => {
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="azure_subscription_id" className={labelClass}>
+                      Azure Subscription ID <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="azure_subscription_id"
+                      name="azure_subscription_id"
+                      value={formData.azure_subscription_id}
+                      onChange={handleChange}
+                      placeholder="5a309391-54e8-4597-98ca-1c35c2c9dc09"
+                      className={inputClass(!!validationErrors.azure_subscription_id)}
+                    />
+                    {validationErrors.azure_subscription_id && (
+                      <p className={errorTextClass}>{validationErrors.azure_subscription_id}</p>
+                    )}
+                    <p className={helperTextClass}>Your Azure Subscription ID (UUID format)</p>
+                  </div>
+
                   <div>
                     <label htmlFor="aks_cluster_name" className={labelClass}>
                       AKS Cluster Name <span className="text-rose-400">*</span>
@@ -941,6 +989,25 @@ const ApplicationForm = () => {
                 </h2>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="aws_account_id" className={labelClass}>
+                      AWS Account ID <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="aws_account_id"
+                      name="aws_account_id"
+                      value={formData.aws_account_id}
+                      onChange={handleChange}
+                      placeholder="397174242206"
+                      className={inputClass(!!validationErrors.aws_account_id)}
+                    />
+                    {validationErrors.aws_account_id && (
+                      <p className={errorTextClass}>{validationErrors.aws_account_id}</p>
+                    )}
+                    <p className={helperTextClass}>Your AWS Account ID (12 digits)</p>
+                  </div>
+
                   <div>
                     <label htmlFor="eks_cluster_name" className={labelClass}>
                       EKS Cluster Name <span className="text-rose-400">*</span>

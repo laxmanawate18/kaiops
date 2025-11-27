@@ -45,6 +45,7 @@ class ApplicationCreate(BaseModel):
     pod_name: Optional[str] = Field(None, description="Pod name pattern")
     
     # Azure specific fields
+    azure_subscription_id: Optional[str] = Field(None, description="Azure Subscription ID")
     aks_cluster_name: Optional[str] = Field(None, description="AKS cluster name")
     azure_deployment_name: Optional[str] = Field(None, description="Azure deployment name")
     azure_pod_name: Optional[str] = Field(None, description="Azure pod name pattern")
@@ -57,6 +58,7 @@ class ApplicationCreate(BaseModel):
     ingress_namespace: Optional[str] = Field(None, description="Ingress namespace")
     
     # AWS specific fields
+    aws_account_id: Optional[str] = Field(None, description="AWS Account ID")
     eks_cluster_name: Optional[str] = Field(None, description="EKS cluster name")
     cloudwatch_log_group_path: Optional[str] = Field(None, description="CloudWatch log group path")
     aws_deployment_name: Optional[str] = Field(None, description="AWS deployment name")
@@ -108,6 +110,24 @@ class ApplicationCreate(BaseModel):
         if v and not re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', v):
             raise ValueError('Namespace must be lowercase alphanumeric with hyphens')
         return v.strip() if v else None
+    
+    @validator('azure_subscription_id', always=True)
+    def validate_azure_subscription_id(cls, v, values):
+        """Validate Azure Subscription ID only if Azure provider is selected."""
+        if values.get('cloud_provider') == CloudProvider.AZURE and not v:
+            raise ValueError('Azure Subscription ID is required when Azure is selected')
+        if v and not re.match(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$', v):
+            raise ValueError('Invalid Azure Subscription ID format (must be UUID)')
+        return v.strip() if v else None
+    
+    @validator('aws_account_id', always=True)
+    def validate_aws_account_id(cls, v, values):
+        """Validate AWS Account ID only if AWS provider is selected."""
+        if values.get('cloud_provider') == CloudProvider.AWS and not v:
+            raise ValueError('AWS Account ID is required when AWS is selected')
+        if v and not re.match(r'^\d{12}$', v):
+            raise ValueError('Invalid AWS Account ID format (must be 12 digits)')
+        return v.strip() if v else None
 
 class ApplicationUpdate(BaseModel):
     """Model for updating an existing application."""
@@ -137,6 +157,7 @@ class ApplicationUpdate(BaseModel):
     pod_name: Optional[str] = None
     
     # Azure specific fields
+    azure_subscription_id: Optional[str] = None
     aks_cluster_name: Optional[str] = None
     azure_deployment_name: Optional[str] = None
     azure_pod_name: Optional[str] = None
@@ -149,6 +170,7 @@ class ApplicationUpdate(BaseModel):
     ingress_namespace: Optional[str] = None
     
     # AWS specific fields
+    aws_account_id: Optional[str] = None
     eks_cluster_name: Optional[str] = None
     cloudwatch_log_group_path: Optional[str] = None
     aws_deployment_name: Optional[str] = None
@@ -212,6 +234,7 @@ class ApplicationResponse(BaseModel):
     pod_name: Optional[str] = None
     
     # Azure specific
+    azure_subscription_id: Optional[str] = None
     aks_cluster_name: Optional[str] = None
     azure_deployment_name: Optional[str] = None
     azure_pod_name: Optional[str] = None
@@ -224,6 +247,7 @@ class ApplicationResponse(BaseModel):
     ingress_namespace: Optional[str] = None
     
     # AWS specific
+    aws_account_id: Optional[str] = None
     eks_cluster_name: Optional[str] = None
     cloudwatch_log_group_path: Optional[str] = None
     aws_deployment_name: Optional[str] = None
