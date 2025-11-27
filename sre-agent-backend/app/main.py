@@ -40,13 +40,16 @@ warnings.filterwarnings("ignore", category=UserWarning, message=".*non-text part
 # Configuration
 AGENT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file__)), "agents"))
 
-# Use MongoDB for ADK session storage instead of SQLite for distributed deployments
-# MongoDB is shared across all pods, SQLite files are pod-local and not shared
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-MONGODB_DB = os.getenv("MONGODB_DB", "sre_agent_db")
-# For Azure Cosmos DB, the connection string is pre-formatted with all parameters
-# Don't append anything - use the URI as-is and specify the database name
-SESSION_DB_URL = f"{MONGODB_URI}/{MONGODB_DB}"  # ADK MongoDB session storage
+# Use PostgreSQL for ADK session storage via Cloud SQL
+# Connection format: postgresql://user:password@host:port/database
+# Cloud SQL Proxy handles authentication and forwarding
+POSTGRES_USER = os.getenv("POSTGRES_USER", "adk_user")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "KaiOPS@Secure2025!")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")  # Cloud SQL Proxy listens on localhost
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "adk_sessions")
+
+SESSION_DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # CORS allowed origins - restrict wildcard in production
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else [

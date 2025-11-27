@@ -20,7 +20,12 @@ data:
   
   # Application
   AGENT_DIR: "/app/agents"
-  SESSION_DB_URL: "sqlite:///./adk_sessions.db"
+  
+  # PostgreSQL (Cloud SQL) Configuration for ADK Sessions
+  POSTGRES_USER: "adk_user"
+  POSTGRES_HOST: "127.0.0.1"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "adk_sessions"
   
   # Allowed origins for CORS
   # Frontend domain mapped to 34.44.48.149, API domain mapped to 34.70.16.109
@@ -159,6 +164,14 @@ spec:
         - name: SECRET_KEY
           value: "feNrat7fzesX0y7ExsVI9D6L4/NDm4Yh/GhB/nhHYjc="
         
+        # PostgreSQL credentials (from secret)
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kaiops-secrets
+              key: POSTGRES_PASSWORD
+              optional: true
+        
         resources:
           requests:
             memory: "256Mi"
@@ -186,15 +199,37 @@ spec:
           failureThreshold: 2
         
         volumeMounts:
-        - name: session-db
-          mountPath: /app/adk_sessions
+        - name: gcp-credentials
+          mountPath: /var/secrets/gcp
+          readOnly: true
+      
+      # Cloud SQL Proxy sidecar to connect to PostgreSQL
+      - name: cloud-sql-proxy
+        image: gcr.io/cloudsql-docker/cloud-sql-proxy:1.33.2
+        command:
+          - "/cloud_sql_proxy"
+          - "-instances=carbon-relic-479214-c1:us-central1:kaiops-sessions=tcp:5432"
+          - "-credential_file=/var/secrets/gcp/key.json"
+        
+        ports:
+        - name: postgres
+          containerPort: 5432
+          protocol: TCP
+        
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        
+        volumeMounts:
         - name: gcp-credentials
           mountPath: /var/secrets/gcp
           readOnly: true
       
       volumes:
-      - name: session-db
-        emptyDir: {}
       - name: gcp-credentials
         secret:
           secretName: gcp-credentials
