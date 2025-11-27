@@ -23,7 +23,7 @@ data:
   
   # PostgreSQL (Cloud SQL) Configuration for ADK Sessions
   POSTGRES_USER: "adk_user"
-  POSTGRES_HOST: "127.0.0.1"
+  POSTGRES_HOST: "34.9.74.83"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "adk_sessions"
   
@@ -197,32 +197,6 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 2
-        
-        volumeMounts:
-        - name: gcp-credentials
-          mountPath: /var/secrets/gcp
-          readOnly: true
-      
-      # Cloud SQL Proxy sidecar to connect to PostgreSQL
-      - name: cloud-sql-proxy
-        image: gcr.io/cloudsql-docker/cloud-sql-proxy:1.33.2
-        command:
-          - "/cloud_sql_proxy"
-          - "-instances=carbon-relic-479214-c1:us-central1:kaiops-sessions=tcp:5432"
-          - "-credential_file=/var/secrets/gcp/key.json"
-        
-        ports:
-        - name: postgres
-          containerPort: 5432
-          protocol: TCP
-        
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "100m"
-          limits:
-            memory: "128Mi"
-            cpu: "200m"
         
         volumeMounts:
         - name: gcp-credentials
