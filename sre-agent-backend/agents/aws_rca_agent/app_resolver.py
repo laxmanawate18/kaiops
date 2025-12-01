@@ -4,6 +4,7 @@ AWS Application Resolver - Dynamically resolves application metadata to EKS depl
 This module bridges the gap between application names (from users) and actual EKS
 pod/namespace information from the metadata database.
 
+Uses PostgreSQL with SQLAlchemy for database access.
 Supports EKS deployments (same Kubernetes structure as Azure agent).
 """
 
@@ -18,34 +19,29 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../..'))
 class AWSAppResolver:
     """Resolves application names to EKS deployment information."""
     
-    _mongo_client = None
-    _db = None
+    _session = None
     _app_cache = {}
     
     @classmethod
-    def get_mongo_db(cls):
-        """Get MongoDB connection."""
-        if cls._db is None:
+    def get_db_session(cls):
+        """Get PostgreSQL database session."""
+        if cls._session is None:
             try:
-                from pymongo import MongoClient
-                from app.database import MongoDBConfig
-                
-                connection_string = MongoDBConfig.get_connection_string()
-                db_name = MongoDBConfig.get_database_name()
-                
-                cls._mongo_client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
-                cls._db = cls._mongo_client[db_name]
-                cls._mongo_client.admin.command('ping')
+                from app.database.postgres_config import PostgresConfig
+                from sqlalchemy import text
+                cls._session = PostgresConfig.get_session()
+                # Test connection
+                cls._session.execute(text("SELECT 1"))
             except Exception as e:
-                print(f"❌ MongoDB connection failed in AWSAppResolver: {e}")
+                print(f"❌ PostgreSQL connection failed in AWSAppResolver: {e}")
                 return None
         
-        return cls._db
+        return cls._session
     
     @classmethod
     def get_app_metadata(cls, app_name: str) -> Optional[Dict[str, Any]]:
         """
-        Fetch application metadata from MongoDB.
+        Fetch application metadata from PostgreSQL (AWS apps).
         
         Args:
             app_name: Application name to look up
@@ -59,27 +55,35 @@ class AWSAppResolver:
             return cls._app_cache[cache_key]
         
         try:
-            db = cls.get_mongo_db()
-            if db is None:
+            session = cls.get_db_session()
+            if session is None:
                 return None
             
-            from app.database import Collections
-            collection = db[Collections.APPLICATIONS]
+            from app.database.models import Application
+            from sqlalchemy import func
             
             # Case-insensitive search for AWS apps
-            app = collection.find_one({
-                "application_name": {
-                    "$regex": f"^{app_name}$",
-                    "$options": "i"
-                },
-                "cloud_provider": {"$in": ["aws", "AWS", None]}  # AWS or unspecified (backward compat)
-            }, {"_id": 0})
+            app = session.query(Application).filter(
+                func.lower(Application.application_name) == func.lower(app_name),
+                func.lower(Application.cloud_provider) == 'aws'
+            ).first()
             
-            # Cache the result
+            # Cache the result as dictionary
             if app:
-                cls._app_cache[cache_key] = app
+                app_dict = {
+                    "id": app.id,
+                    "application_name": app.application_name,
+                    "cloud_provider": app.cloud_provider,
+                    "aws_account_id": app.aws_account_id,
+                    "namespace": app.namespace or "default",
+                    "status": str(app.status) if app.status else None,
+                    "application_owner": app.application_owner,
+                    "argocd_app_name": app.argocd_app_name,
+                    "gke_cluster_name": app.gke_cluster_name
+                }
+                cls._app_cache[cache_key] = app_dict
             
-            return app
+            return app_dict
         
         except Exception as e:
             print(f"❌ Error fetching app metadata for '{app_name}': {e}")
@@ -109,63 +113,28 @@ class AWSAppResolver:
             }
         
         namespace = app.get("namespace", "default")
-        cluster = app.get("aws_cluster_name", "")
+        cluster = app.get("gke_cluster_name", "")
+        deployment_name = app.get("argocd_app_name") or app_name.lower().replace(" ", "-")
+        pod_name = f"{deployment_name}-pod"
         
-        # Check if app has multiple deployments defined
-        deployments_data = app.get("deployments", [])
-        
-        if deployments_data and isinstance(deployments_data, list) and len(deployments_data) > 0:
-            # Multi-deployment app - return all deployments
-            deployments = []
-            for deploy in deployments_data:
-                deployments.append({
-                    "pod_name": deploy.get("pod_name", f"{deploy.get('deployment_name', 'unknown')}-pod"),
-                    "deployment_name": deploy.get("deployment_name", "unknown"),
-                    "namespace": deploy.get("namespace", namespace),
-                    "status": deploy.get("status", "unknown"),
-                    "criticality": deploy.get("criticality", "medium"),
-                    "component_type": deploy.get("component_type", "service"),
-                    "cloudwatch_log_group": deploy.get("cloudwatch_log_group", app.get("cloudwatch_log_group", ""))
-                })
-            
-            return {
-                "deployments": deployments,
-                "app_name": app.get("application_name", app_name),
+        return {
+            "deployments": [{
+                "pod_name": pod_name,
+                "deployment_name": deployment_name,
                 "namespace": namespace,
-                "cluster": cluster,
-                "environment": app.get("environment", "unknown"),
-                "owner": app.get("application_owner", "unknown"),
-                "is_multi_deployment": True,
-                "cloudwatch_log_group": app.get("cloudwatch_log_group", "")
-            }
-        else:
-            # Single deployment app - construct pod info from metadata
-            pod_name = app.get("pod_name")
-            if not pod_name:
-                # Try to construct pod name from common Kubernetes naming patterns
-                app_name_normalized = app.get("application_name", app_name).lower().replace(" ", "-")
-                pod_name = f"{app_name_normalized}-deployment-pod"
-            
-            deployment_name = app.get("deployment_name", pod_name.split("-pod")[0] if "-pod" in pod_name else pod_name)
-            
-            return {
-                "deployments": [{
-                    "pod_name": pod_name,
-                    "deployment_name": deployment_name,
-                    "namespace": namespace,
-                    "status": app.get("status", "unknown"),
-                    "criticality": "critical",
-                    "component_type": "service",
-                    "cloudwatch_log_group": app.get("cloudwatch_log_group", "")
-                }],
-                "app_name": app.get("application_name", app_name),
-                "namespace": namespace,
-                "cluster": cluster,
-                "environment": app.get("environment", "unknown"),
-                "owner": app.get("application_owner", "unknown"),
-                "is_multi_deployment": False,
-                "cloudwatch_log_group": app.get("cloudwatch_log_group", "")
-            }
+                "status": app.get("status", "unknown"),
+                "criticality": "critical",
+                "component_type": "service",
+                "cloudwatch_log_group": ""
+            }],
+            "app_name": app.get("application_name", app_name),
+            "namespace": namespace,
+            "cluster": cluster,
+            "environment": "unknown",
+            "owner": app.get("application_owner", "unknown"),
+            "is_multi_deployment": False,
+            "cloudwatch_log_group": ""
+        }
     
     @classmethod
     def resolve_ingress_info(cls, app_name: str) -> Dict[str, str]:
@@ -188,15 +157,15 @@ class AWSAppResolver:
         
         # Get ALB log group from app metadata or use default
         from agents.aws_rca_agent.config import AWSConfig
-        alb_log_group = app.get("alb_log_group", AWSConfig.AWS_ALB_LOG_GROUP)
-        cluster = app.get("aws_cluster_name", "")
+        alb_log_group = AWSConfig.AWS_ALB_LOG_GROUP if hasattr(AWSConfig, 'AWS_ALB_LOG_GROUP') else ""
+        cluster = app.get("gke_cluster_name", "")
         
         return {
             "log_group": alb_log_group,
             "cluster": cluster,
             "app_name": app.get("application_name", app_name),
-            "app_host": app.get("app_host", ""),
-            "domain": app.get("domain", "")
+            "app_host": "",
+            "domain": ""
         }
 
 

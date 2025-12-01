@@ -1,8 +1,9 @@
 """
 Database Package
 
-MongoDB integration for all SRE Agent data storage.
+PostgreSQL integration for all SRE Agent data storage.
+Replaced MongoDB with SQLAlchemy-based PostgreSQL backend.
 """
-from .mongo_config import MongoDBConfig, get_db, Collections
+from .postgres_config import PostgresConfig, get_db
 
-__all__ = ["MongoDBConfig", "get_db", "Collections"]
+__all__ = ["PostgresConfig", "get_db"]

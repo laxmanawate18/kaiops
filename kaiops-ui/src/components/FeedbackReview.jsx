@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useFeedback } from '../contexts/FeedbackContext'
 import { useAuth } from '../contexts/AuthContext'
-import { FeedbackCategory, DatasetType } from '../constants/apiConstants'
+import { FeedbackCategory, DatasetType, FeedbackType, FeedbackStatus } from '../constants/apiConstants'
 
 function FeedbackReview() {
   const { pending, reviewFeedback, feedbackStats, reloadPending, reloadStats } = useFeedback()
@@ -19,7 +19,7 @@ function FeedbackReview() {
     comment: '',
     tags: [],
     dataset: '',
-    status: 'approved'
+    status: FeedbackStatus.APPROVED
   })
 
   useEffect(() => {
@@ -34,8 +34,8 @@ function FeedbackReview() {
 
   const filteredFeedback = useMemo(() => {
     return pending.filter(item => {
-      if (filterType === 'positive') return item.feedback_type === 'thumbs_up'
-      if (filterType === 'negative') return item.feedback_type === 'thumbs_down'
+      if (filterType === 'positive') return item.feedback_type === FeedbackType.THUMBS_UP
+      if (filterType === 'negative') return item.feedback_type === FeedbackType.THUMBS_DOWN
       return true
     })
   }, [pending, filterType])
@@ -49,7 +49,7 @@ function FeedbackReview() {
       comment: '',
       tags: feedback?.tags || [],
       dataset: '',
-      status: 'approved'
+      status: FeedbackStatus.APPROVED
     })
   }
 
@@ -191,11 +191,11 @@ function FeedbackReview() {
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-xs font-bold px-2 py-1 rounded-md ${
-                      item.feedback_type === 'thumbs_up' 
+                      item.feedback_type === FeedbackType.THUMBS_UP 
                         ? 'bg-emerald-500/20 text-emerald-300' 
                         : 'bg-rose-500/20 text-rose-300'
                     }`}>
-                      {item.feedback_type === 'thumbs_up' ? '👍 Positive' : '👎 Negative'}
+                      {item.feedback_type === FeedbackType.THUMBS_UP ? '👍 Positive' : '👎 Negative'}
                     </span>
                     <span className="text-xs text-slate-500">
                       {new Date(item.created_at).toLocaleDateString()}
@@ -347,14 +347,14 @@ function FeedbackReview() {
               {/* Sticky Action Bar */}
               <div className="p-6 border-t border-white/10 bg-black/20 backdrop-blur-md flex gap-4">
                 <button
-                  onClick={() => handleSubmitReview('approved')}
+                  onClick={() => handleSubmitReview(FeedbackStatus.APPROVED)}
                   disabled={isSubmitting}
                   className="flex-1 bg-gradient-to-r from-emerald-500 to-green-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 transition transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Processing...' : '✅ Approve & Close'}
                 </button>
                 <button
-                  onClick={() => handleSubmitReview('denied')}
+                  onClick={() => handleSubmitReview(FeedbackStatus.DENIED)}
                   disabled={isSubmitting}
                   className="flex-1 bg-white/5 border border-white/10 text-slate-300 font-bold py-3 rounded-xl hover:bg-rose-500/10 hover:text-rose-300 hover:border-rose-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >

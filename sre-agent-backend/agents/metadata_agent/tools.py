@@ -1,12 +1,11 @@
 """
 Metadata Agent Tools
 
-Direct MongoDB tools for application metadata and configuration management.
-No MCP required - direct database access as the authoritative context source.
+PostgreSQL tools for application metadata and configuration management.
+Replaced MongoDB with SQLAlchemy-based PostgreSQL backend.
 """
 
 import json
-from bson.json_util import dumps
 import os
 import sys
 from typing import Optional
@@ -19,34 +18,29 @@ load_dotenv()
 # Add parent directory to path for app imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../..'))
 
-# Global cache for MongoDB queries (TTL: 2 minutes)
-_mongo_cache = TTLCache(maxsize=50, ttl=120)
+# Global cache for database queries (TTL: 2 minutes)
+_query_cache = TTLCache(maxsize=50, ttl=120)
 
-# Global MongoDB client
-_mongo_client = None
-_db = None
+# Global database session
+_session = None
 
 
-def get_mongo_client():
-    """Get or create synchronous MongoDB client."""
-    global _mongo_client, _db
-    if _mongo_client is None:
+def get_session():
+    """Get or create SQLAlchemy database session."""
+    global _session
+    if _session is None:
         try:
-            from pymongo import MongoClient
-            from app.database import MongoDBConfig
-
-            connection_string = MongoDBConfig.get_connection_string()
-            db_name = MongoDBConfig.get_database_name()
-
-            _mongo_client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
-            _db = _mongo_client[db_name]
-            _mongo_client.admin.command('ping')
-            print("✅ MongoDB client initialized successfully")
+            from app.database.postgres_config import PostgresConfig
+            from sqlalchemy import text
+            _session = PostgresConfig.get_session()
+            # Test connection
+            _session.execute(text("SELECT 1"))
+            print("✅ PostgreSQL session initialized successfully")
         except Exception as e:
-            print(f"❌ MongoDB client init failed: {e}")
-            return None, None
+            print(f"❌ PostgreSQL session init failed: {e}")
+            return None
 
-    return _mongo_client, _db
+    return _session
 
 
 async def search_application_by_name(app_name: str, tool_context: Optional[ToolContext] = None) -> str:
@@ -63,42 +57,39 @@ async def search_application_by_name(app_name: str, tool_context: Optional[ToolC
         Formatted application details with all metadata fields
     """
     try:
-        client, db = get_mongo_client()
-        if db is None:
-            return "❌ **MongoDB Connection Failed**\nDatabase is unavailable. Please try again later."
+        session = get_session()
+        if session is None:
+            return "❌ **PostgreSQL Connection Failed**\nDatabase is unavailable. Please try again later."
 
-        from app.database import Collections
-        collection = db[Collections.APPLICATIONS]
+        from app.database.models import Application
+        from sqlalchemy import func
 
         # Case-insensitive search
-        app = collection.find_one({
-            "application_name": {
-                "$regex": f"^{app_name}$",
-                "$options": "i"
-            }
-        }, {"_id": 0})
+        app = session.query(Application).filter(
+            func.lower(Application.application_name) == func.lower(app_name)
+        ).first()
 
         if not app:
             # Fallback: list available apps
-            all_apps = list(collection.find({}, {"application_name": 1, "_id": 0}))
+            all_apps = session.query(Application.application_name).all()
             
             if not all_apps:
                 return f"❌ **Application Not Found**\nNo application named '{app_name}' exists. Database is empty."
             
-            app_names = "\n".join([f"• {a.get('application_name', 'Unknown')}" for a in all_apps])
+            app_names = "\n".join([f"• {a[0]}" for a in all_apps])
             return f"❌ **Application Not Found**\nNo application named '{app_name}' in database.\n\n📋 **Available Applications:**\n{app_names}"
 
         # Format response with emoji
-        response = f"📱 **Application: {app.get('application_name', 'Unknown')}**\n\n"
-        response += f"🔗 **Repository**: `{app.get('github_repo', 'N/A')}`\n"
-        response += f"👤 **Owner**: `{app.get('application_owner', 'N/A')}`\n"
-        response += f"🌐 **Cluster**: `{app.get('gke_cluster_name', 'N/A')}`\n"
-        response += f"📦 **Namespace**: `{app.get('namespace', 'N/A')}`\n"
-        response += f"🚀 **ArgoCD App**: `{app.get('argocd_app_name', 'N/A')}`\n"
-        response += f"📊 **Grafana Dashboard**: `{app.get('grafana_dashboard', 'N/A')}`\n"
-        response += f"⚙️ **Environment**: `{app.get('environment', 'N/A')}`\n"
-        response += f"📝 **Description**: {app.get('description', 'N/A')}\n"
-        response += f"✅ **Status**: {app.get('status', 'N/A')}\n"
+        response = f"📱 **Application: {app.application_name}**\n\n"
+        response += f"🔗 **Repository**: `{app.github_repo or 'N/A'}`\n"
+        response += f"👤 **Owner**: `{app.application_owner or 'N/A'}`\n"
+        response += f"🌐 **Cluster**: `{app.gke_cluster_name or 'N/A'}`\n"
+        response += f"📦 **Namespace**: `{app.namespace or 'N/A'}`\n"
+        response += f"🚀 **ArgoCD App**: `{app.argocd_app_name or 'N/A'}`\n"
+        response += f"📊 **Grafana Dashboard**: `{app.grafana_dashboard or 'N/A'}`\n"
+        response += f"☁️ **Cloud Provider**: `{app.cloud_provider or 'N/A'}`\n"
+        response += f"📝 **Description**: {app.description or 'N/A'}\n"
+        response += f"✅ **Status**: {app.status or 'N/A'}\n"
         
         return response
 
@@ -110,19 +101,18 @@ async def search_application_by_name(app_name: str, tool_context: Optional[ToolC
 async def list_all_applications(tool_context: Optional[ToolContext] = None) -> str:
     """Return all applications as structured JSON for frontend rendering."""
     try:
-        client, db = get_mongo_client()
-        if db is None:
+        session = get_session()
+        if session is None:
             return json.dumps({
                 "error": True,
-                "message": "MongoDB Connection Failed",
+                "message": "PostgreSQL Connection Failed",
                 "description": "Database is unavailable. Please try again later.",
                 "applications": []
             })
 
-        from app.database import Collections
-        collection = db[Collections.APPLICATIONS]
+        from app.database.models import Application
 
-        apps = list(collection.find({}, {"_id": 0}))
+        apps = session.query(Application).all()
 
         if not apps:
             return json.dumps({
@@ -139,7 +129,7 @@ async def list_all_applications(tool_context: Optional[ToolContext] = None) -> s
         pending_count = 0
 
         for app in apps:
-            status = (app.get("status") or "unknown").lower()
+            status = (str(app.status) if app.status else "unknown").lower()
             if status == "active":
                 active_count += 1
             elif status == "inactive":
@@ -148,14 +138,14 @@ async def list_all_applications(tool_context: Optional[ToolContext] = None) -> s
                 pending_count += 1
 
             formatted_apps.append({
-                "application_name": app.get("application_name", "Unknown"),
-                "application_owner": app.get("application_owner", "N/A"),
-                "gke_cluster_name": app.get("gke_cluster_name", "N/A"),
-                "status": app.get("status", "Unknown"),
-                "github_repo": app.get("github_repo", "N/A"),
-                "argocd_app_name": app.get("argocd_app_name", "N/A"),
-                "grafana_dashboard": app.get("grafana_dashboard", "N/A"),
-                "cloud_provider": app.get("cloud_provider", "N/A")
+                "application_name": app.application_name,
+                "application_owner": app.application_owner or "N/A",
+                "gke_cluster_name": app.gke_cluster_name or "N/A",
+                "status": str(app.status) if app.status else "Unknown",
+                "github_repo": app.github_repo or "N/A",
+                "argocd_app_name": app.argocd_app_name or "N/A",
+                "grafana_dashboard": app.grafana_dashboard or "N/A",
+                "cloud_provider": app.cloud_provider or "N/A"
             })
 
         return json.dumps({
@@ -183,37 +173,77 @@ async def list_all_applications(tool_context: Optional[ToolContext] = None) -> s
 
 async def query_mongodb(filter: dict, collection_name: Optional[str] = None, tool_context: Optional[ToolContext] = None) -> str:
     """
-    Execute a custom MongoDB query with a filter.
+    Execute a custom PostgreSQL query based on filter criteria.
+    
+    DEPRECATED: This function has been replaced by PostgreSQL backend.
+    Kept for backward compatibility - defaults to listing all applications.
     
     Args:
-        filter: MongoDB filter dictionary
-        collection_name: Optional collection name (defaults to applications)
+        filter: Query filter dictionary (for compatibility, may not fully support MongoDB syntax)
+        collection_name: Optional collection name (ignored, PostgreSQL uses tables)
     
     Returns:
         JSON-formatted query results
     """
     try:
-        cache_key = f"{collection_name or 'applications'}:{json.dumps(filter, sort_keys=True)}"
+        cache_key = f"applications:{json.dumps(filter, sort_keys=True, default=str)}"
 
-        if cache_key in _mongo_cache:
-            return _mongo_cache[cache_key]
+        if cache_key in _query_cache:
+            return _query_cache[cache_key]
 
-        client, db = get_mongo_client()
-        if db is None:
-            return "❌ MongoDB not available. Please check database connection."
+        session = get_session()
+        if session is None:
+            return "❌ PostgreSQL not available. Please check database connection."
 
-        from app.database import Collections
-        target_collection_name = collection_name or Collections.APPLICATIONS
-        collection = db[target_collection_name]
+        from app.database.models import Application
+        from sqlalchemy import func
 
-        docs = list(collection.find(filter, {"_id": 0}))
-        result = dumps(docs, indent=2) if docs else "No matching documents found."
+        # For backward compatibility, treat filter as basic query
+        # If filter is empty, return all applications
+        if not filter:
+            apps = session.query(Application).all()
+        else:
+            # Try to match by application_name if provided
+            if "application_name" in filter:
+                app_name = filter["application_name"]
+                if isinstance(app_name, dict) and "$regex" in app_name:
+                    # MongoDB regex pattern
+                    pattern = app_name["$regex"]
+                    apps = session.query(Application).filter(
+                        func.lower(Application.application_name).ilike(f"%{pattern}%")
+                    ).all()
+                else:
+                    # Exact match
+                    apps = session.query(Application).filter(
+                        func.lower(Application.application_name) == func.lower(str(app_name))
+                    ).all()
+            else:
+                apps = session.query(Application).all()
 
-        _mongo_cache[cache_key] = result
+        # Convert to list of dicts
+        docs = []
+        for app in apps:
+            docs.append({
+                "id": app.id,
+                "application_name": app.application_name,
+                "description": app.description,
+                "application_owner": app.application_owner,
+                "status": str(app.status) if app.status else None,
+                "cloud_provider": app.cloud_provider,
+                "github_repo": app.github_repo,
+                "gke_cluster_name": app.gke_cluster_name,
+                "argocd_app_name": app.argocd_app_name,
+                "grafana_dashboard": app.grafana_dashboard,
+                "namespace": app.namespace
+            })
+
+        result = json.dumps(docs, indent=2, default=str) if docs else "No matching documents found."
+
+        _query_cache[cache_key] = result
         return result
 
     except Exception as e:
-        return f"❌ MongoDB query error: {str(e)}"
+        return f"❌ PostgreSQL query error: {str(e)}"
 
 
 __all__ = [

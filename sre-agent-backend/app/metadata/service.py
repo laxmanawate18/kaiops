@@ -9,7 +9,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 from app.metadata.models import ApplicationMetadata
-from app.metadata.database_mongo import MetadataDatabase
+from app.metadata.database_postgres import metadata_db
 from app.metadata.cache import metadata_cache
 from app.metadata.validation import MetadataValidator, ValidationError
 
@@ -41,7 +41,7 @@ class MetadataService:
                 return cached_data
         
         # Fetch from database
-        metadata = MetadataDatabase.get_metadata(app_name)
+        metadata = metadata_db.get_metadata(app_name)
         
         # Store in cache
         if metadata and use_cache:
@@ -71,7 +71,7 @@ class MetadataService:
                 return cached_data
         
         # Fetch from database
-        metadata_list = MetadataDatabase.list_all_metadata()
+        metadata_list = metadata_db.get_all_metadata()
         
         # Store in cache
         if use_cache:
@@ -160,7 +160,7 @@ class MetadataService:
             )
             
             # Save to database
-            success = MetadataDatabase.create_metadata(metadata)
+            success = metadata_db.create_metadata(app_name, description, environment, team, github, argocd, grafana, prometheus)
             
             if success:
                 # Invalidate list cache
@@ -212,7 +212,7 @@ class MetadataService:
         """
         try:
             # Check if metadata exists
-            existing = MetadataDatabase.get_metadata(app_name)
+            existing = metadata_db.get_metadata(app_name)
             if not existing:
                 error_msg = f"Metadata for '{app_name}' not found"
                 logger.warning(error_msg)
@@ -270,8 +270,8 @@ class MetadataService:
                 update_dict["cost"] = CostMetadata(**cost).dict()
             
             # Update in database
-            success = MetadataDatabase.update_metadata(
-                app_name, update_dict, updated_by
+            success = metadata_db.update_metadata(
+                app_name, update_dict
             )
             
             if success:
@@ -305,7 +305,7 @@ class MetadataService:
         """
         try:
             # Delete from database
-            success = MetadataDatabase.delete_metadata(app_name)
+            success = metadata_db.delete_metadata(app_name)
             
             if success:
                 # Invalidate caches
@@ -334,7 +334,7 @@ class MetadataService:
             List of matching ApplicationMetadata objects
         """
         try:
-            results = MetadataDatabase.search_metadata(query)
+            results = metadata_db.search_metadata(query)
             logger.info(f"Search results for '{query}': {len(results)} matches")
             return results
         except Exception as e:

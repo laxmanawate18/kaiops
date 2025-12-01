@@ -5,6 +5,7 @@ This module bridges the gap between application names (from users) and actual Ku
 pod/namespace information from the metadata database.
 
 It replaces hardcoded pod names and namespaces with dynamic resolution.
+Uses PostgreSQL with SQLAlchemy for database access.
 """
 
 import os
@@ -18,34 +19,29 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../../..'))
 class AppResolver:
     """Resolves application names to Kubernetes pod information."""
     
-    _mongo_client = None
-    _db = None
+    _session = None
     _app_cache = {}
     
     @classmethod
-    def get_mongo_db(cls):
-        """Get MongoDB connection."""
-        if cls._db is None:
+    def get_db_session(cls):
+        """Get PostgreSQL database session."""
+        if cls._session is None:
             try:
-                from pymongo import MongoClient
-                from app.database import MongoDBConfig
-                
-                connection_string = MongoDBConfig.get_connection_string()
-                db_name = MongoDBConfig.get_database_name()
-                
-                cls._mongo_client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
-                cls._db = cls._mongo_client[db_name]
-                cls._mongo_client.admin.command('ping')
+                from app.database.postgres_config import PostgresConfig
+                from sqlalchemy import text
+                cls._session = PostgresConfig.get_session()
+                # Test connection
+                cls._session.execute(text("SELECT 1"))
             except Exception as e:
-                print(f"❌ MongoDB connection failed in AppResolver: {e}")
+                print(f"❌ PostgreSQL connection failed in AppResolver: {e}")
                 return None
         
-        return cls._db
+        return cls._session
     
     @classmethod
     def get_app_metadata(cls, app_name: str) -> Optional[Dict[str, Any]]:
         """
-        Fetch application metadata from MongoDB.
+        Fetch application metadata from PostgreSQL.
         
         Args:
             app_name: Application name to look up
@@ -59,26 +55,38 @@ class AppResolver:
             return cls._app_cache[cache_key]
         
         try:
-            db = cls.get_mongo_db()
-            if db is None:
+            session = cls.get_db_session()
+            if session is None:
                 return None
             
-            from app.database import Collections
-            collection = db[Collections.APPLICATIONS]
+            from app.database.models import Application
+            from sqlalchemy import func
             
             # Case-insensitive search
-            app = collection.find_one({
-                "application_name": {
-                    "$regex": f"^{app_name}$",
-                    "$options": "i"
-                }
-            }, {"_id": 0})
+            app = session.query(Application).filter(
+                func.lower(Application.application_name) == func.lower(app_name)
+            ).first()
             
-            # Cache the result
+            # Cache the result as dictionary
             if app:
-                cls._app_cache[cache_key] = app
+                app_dict = {
+                    "id": app.id,
+                    "application_name": app.application_name,
+                    "description": app.description,
+                    "application_owner": app.application_owner,
+                    "status": str(app.status) if app.status else None,
+                    "cloud_provider": app.cloud_provider,
+                    "gke_cluster_name": app.gke_cluster_name,
+                    "namespace": app.namespace or "kaiops-ns",
+                    "pod_name": None,  # Not stored in model, derived from app name
+                    "deployment_name": app.argocd_app_name,  # Use ArgoCD app name as deployment
+                    "github_repo": app.github_repo,
+                    "argocd_app_name": app.argocd_app_name,
+                    "grafana_dashboard": app.grafana_dashboard
+                }
+                cls._app_cache[cache_key] = app_dict
             
-            return app
+            return app_dict
         
         except Exception as e:
             print(f"❌ Error fetching app metadata for '{app_name}': {e}")
@@ -109,58 +117,27 @@ class AppResolver:
         
         namespace = app.get("namespace", "kaiops-ns")
         cluster = app.get("gke_cluster_name", "")
+        deployment_name = app.get("deployment_name") or app.get("argocd_app_name") or app_name.lower().replace(" ", "-")
         
-        # Check if app has multiple deployments defined
-        deployments_data = app.get("deployments", [])
+        # Construct pod name from deployment name
+        pod_name = f"{deployment_name}-pod"
         
-        if deployments_data and isinstance(deployments_data, list) and len(deployments_data) > 0:
-            # Multi-deployment app - return all deployments
-            deployments = []
-            for deploy in deployments_data:
-                deployments.append({
-                    "pod_name": deploy.get("pod_name", f"{deploy.get('deployment_name', 'unknown')}-pod"),
-                    "deployment_name": deploy.get("deployment_name", "unknown"),
-                    "namespace": deploy.get("namespace", namespace),
-                    "status": deploy.get("status", "unknown"),
-                    "criticality": deploy.get("criticality", "medium"),
-                    "component_type": deploy.get("component_type", "service")
-                })
-            
-            return {
-                "deployments": deployments,
-                "app_name": app.get("application_name", app_name),
+        return {
+            "deployments": [{
+                "pod_name": pod_name,
+                "deployment_name": deployment_name,
                 "namespace": namespace,
-                "cluster": cluster,
-                "environment": app.get("environment", "unknown"),
-                "owner": app.get("application_owner", "unknown"),
-                "is_multi_deployment": True
-            }
-        else:
-            # Single deployment app - construct pod info from legacy format
-            pod_name = app.get("pod_name")
-            if not pod_name:
-                # Try to construct pod name from common Kubernetes naming patterns
-                app_name_normalized = app.get("application_name", app_name).lower().replace(" ", "-")
-                pod_name = f"{app_name_normalized}-deployment-pod"  # Fallback pattern
-            
-            deployment_name = app.get("deployment_name", pod_name.split("-pod")[0] if "-pod" in pod_name else pod_name)
-            
-            return {
-                "deployments": [{
-                    "pod_name": pod_name,
-                    "deployment_name": deployment_name,
-                    "namespace": namespace,
-                    "status": app.get("status", "unknown"),
-                    "criticality": "critical",
-                    "component_type": "service"
-                }],
-                "app_name": app.get("application_name", app_name),
-                "namespace": namespace,
-                "cluster": cluster,
-                "environment": app.get("environment", "unknown"),
-                "owner": app.get("application_owner", "unknown"),
-                "is_multi_deployment": False
-            }
+                "status": app.get("status", "unknown"),
+                "criticality": "critical",
+                "component_type": "service"
+            }],
+            "app_name": app.get("application_name", app_name),
+            "namespace": namespace,
+            "cluster": cluster,
+            "environment": "unknown",
+            "owner": app.get("application_owner", "unknown"),
+            "is_multi_deployment": False
+        }
     
     @classmethod
     def resolve_ingress_info(cls, app_name: str) -> Dict[str, str]:
@@ -183,15 +160,15 @@ class AppResolver:
         
         # Get ingress namespace from app metadata
         # Default to standard NGINX ingress namespace
-        ingress_namespace = app.get("ingress_namespace", "app-routing-system")
+        ingress_namespace = "app-routing-system"
         cluster = app.get("gke_cluster_name", "")
         
         return {
             "namespace": ingress_namespace,
             "cluster": cluster,
             "app_name": app.get("application_name", app_name),
-            "app_host": app.get("app_host", ""),
-            "domain": app.get("domain", "")
+            "app_host": "",
+            "domain": ""
         }
     
     @classmethod
@@ -209,15 +186,9 @@ class AppResolver:
         if info.get("error"):
             return app_name.lower().replace(" ", "-")
         
-        # Return just the deployment prefix (e.g., "todo-backend-app-deploy")
-        pod_name = info.get("pod_name", "")
-        if pod_name:
-            # Extract the deployment prefix (everything before the unique pod suffix)
-            parts = pod_name.split("-")
-            if len(parts) > 2:
-                return "-".join(parts[:-2])  # Remove the unique pod identifier
-        
-        return app_name.lower().replace(" ", "-")
+        # Return the deployment prefix for pod matching
+        deployment_name = info.get("deployments", [{}])[0].get("deployment_name", app_name.lower().replace(" ", "-"))
+        return deployment_name
 
 
 # Convenience functions for use in tools

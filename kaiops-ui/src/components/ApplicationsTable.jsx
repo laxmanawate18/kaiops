@@ -50,7 +50,16 @@ function ApplicationsTable({ data }) {
   }
 
   const renderStatus = (statusValue) => {
-    const key = (statusValue || '').toLowerCase()
+    // Handle both uppercase and lowercase status values
+    // Also handle enum format like "ApplicationStatusEnum.ACTIVE"
+    let statusStr = (statusValue || '').toString()
+    
+    // Extract status after dot if it's in enum format
+    if (statusStr.includes('.')) {
+      statusStr = statusStr.split('.').pop()
+    }
+    
+    const key = statusStr.toLowerCase()
     const meta = STATUS_META[key] || STATUS_META.default
     return <span className={meta.className}>{meta.emoji} {meta.label}</span>
   }

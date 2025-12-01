@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer
 from datetime import timedelta
 from typing import List
 from .models import UserLogin, UserCreate, UserResponse, Token, PasswordChange, UserRole, UserUpdate
-from .database import user_db
+from .database_postgres import user_db
 from .utils import verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from .dependencies import get_current_user, get_current_admin_user
 import logging
@@ -139,7 +139,7 @@ async def get_current_user_info(current_user: UserResponse = Depends(get_current
 @router.get("/admin/users", response_model=List[UserResponse])
 async def get_all_users(current_admin: UserResponse = Depends(get_current_admin_user)):
     """Get all users (admin only) with team information."""
-    from .team_database import team_db
+    from .team_database_postgres import team_db
     
     users = user_db.get_all_users()
     user_responses = []

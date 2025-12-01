@@ -23,6 +23,7 @@ load_dotenv()
 from app.middleware import RequestContextMiddleware
 from app.cache import get_cache_manager
 import logging
+from urllib.parse import quote
 
 # Configure structured logging
 logging.basicConfig(
@@ -43,13 +44,16 @@ AGENT_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.dirname(__file_
 # Use PostgreSQL for ADK session storage via Cloud SQL
 # Connection format: postgresql://user:password@host:port/database
 # Cloud SQL Proxy handles authentication and forwarding
-POSTGRES_USER = os.getenv("POSTGRES_USER", "adk_user")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "KaiOPS@Secure2025!")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "sre_user")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_ADK_PASSWORD", "Azure@123456")
 POSTGRES_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1")  # Cloud SQL Proxy listens on localhost
 POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
 POSTGRES_DB = os.getenv("POSTGRES_DB", "adk_sessions")
 
-SESSION_DB_URL = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+# URL-encode password to handle special characters
+encoded_password = quote(POSTGRES_PASSWORD, safe='')
+
+SESSION_DB_URL = f"postgresql://{POSTGRES_USER}:{encoded_password}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
 # CORS allowed origins - restrict wildcard in production
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else [
@@ -74,14 +78,16 @@ async def lifespan(app: FastAPI):
     logger.info("Starting ADK FastAPI application...")
     logger.info("=" * 70)
     
-    # Initialize Azure Cosmos DB connection (required)
-    from app.database import MongoDBConfig
+    # Initialize PostgreSQL connection (required)
+    from app.database.postgres_config import PostgresConfig
     try:
-        db = MongoDBConfig.connect()
-        logger.info(f"✅ Azure Cosmos DB connected: {MongoDBConfig.get_database_name()}")
-        app_state["mongodb_connected"] = True
+        if PostgresConfig.check_database_exists():
+            logger.info(f"✅ PostgreSQL database connected: {os.getenv('SRE_AGENT_DB', 'sre_agent_db')}")
+            app_state["postgresql_connected"] = True
+        else:
+            raise Exception("PostgreSQL health check failed")
     except Exception as e:
-        logger.error(f"❌ Failed to connect to Azure Cosmos DB: {e}")
+        logger.error(f"❌ Failed to connect to PostgreSQL: {e}")
         logger.error("Cannot start without database connection. Exiting.")
         raise
     
@@ -111,7 +117,7 @@ async def lifespan(app: FastAPI):
     # Shutdown  
     logger.info("Shutting down ADK FastAPI application...")
     try:
-        MongoDBConfig.close()
+        PostgresConfig.close()
         app_state.clear()
         logger.info("✅ Shutdown completed successfully")
     except Exception as e:
@@ -256,7 +262,7 @@ def create_app() -> FastAPI:
         return {
             "status": "healthy",
             "service": "sre_agent_api",
-            "message": "API is running and connected to Azure Cosmos DB",
+            "message": "API is running and connected to PostgreSQL",
             "database": "sre_agent_db"
         }
     

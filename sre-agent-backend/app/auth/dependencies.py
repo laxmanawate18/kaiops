@@ -2,8 +2,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from .utils import verify_token
-from .database import user_db
-from .team_database import team_db
+from .database_postgres import user_db
+from .team_database_postgres import team_db
 from .models import UserRole, UserResponse, AgentType, AgentPriority
 
 security = HTTPBearer()

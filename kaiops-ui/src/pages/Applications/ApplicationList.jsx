@@ -24,6 +24,13 @@ function ApplicationList() {
   const [deleteId, setDeleteId] = useState(null)
   const [notification, setNotification] = useState(null)
 
+  // Helper to extract status from enum format (e.g., "ApplicationStatusEnum.ACTIVE" -> "ACTIVE")
+  const getStatusValue = (status) => {
+    if (!status) return ''
+    const statusStr = status.toString()
+    return statusStr.includes('.') ? statusStr.split('.').pop() : statusStr
+  }
+
   useEffect(() => {
     loadData()
   }, [])
@@ -41,8 +48,8 @@ function ApplicationList() {
       const uniqueClusters = new Set(apps.map(a => a.gke_cluster_name).filter(Boolean)).size
       setStats({
         total: apps.length,
-        active: apps.filter(a => a.status === 'active').length,
-        inactive: apps.filter(a => a.status === 'inactive').length,
+        active: apps.filter(a => getStatusValue(a.status).toUpperCase() === 'ACTIVE').length,
+        inactive: apps.filter(a => getStatusValue(a.status).toUpperCase() === 'INACTIVE').length,
         clusters: uniqueClusters
       })
     } catch (error) {
@@ -75,9 +82,9 @@ function ApplicationList() {
       await applicationService.toggleStatus(id)
       // Optimistic update
       setApplications(prev => prev.map(app => 
-        app.id === id ? { ...app, status: currentStatus === 'active' ? 'inactive' : 'active' } : app
+        app.id === id ? { ...app, status: getStatusValue(currentStatus).toUpperCase() === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' } : app
       ))
-      showNotification(`Application ${currentStatus === 'active' ? 'deactivated' : 'activated'}`)
+      showNotification(`Application ${getStatusValue(currentStatus).toUpperCase() === 'ACTIVE' ? 'deactivated' : 'activated'}`)
     } catch (error) {
       showNotification('Failed to update status', 'error')
       loadData() // Revert on error
@@ -91,7 +98,7 @@ function ApplicationList() {
 
   const filteredApps = useMemo(() => {
     return applications.filter(app => {
-      if (statusFilter !== 'all' && app.status !== statusFilter) return false
+      if (statusFilter !== 'all' && getStatusValue(app.status).toUpperCase() !== statusFilter.toUpperCase()) return false
       if (clusterFilter !== 'all' && app.gke_cluster_name !== clusterFilter) return false
       
       if (searchQuery) {
@@ -265,11 +272,11 @@ function ApplicationList() {
                       📦
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                      app.status === 'active' 
+                      getStatusValue(app.status).toUpperCase() === 'ACTIVE' 
                         ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
-                        : 'bg-slate-500/20 text-slate-300 border-slate-500/30'
+                        : 'bg-slate-500/20 text-slate-400 border-slate-500/30'
                     }`}>
-                      {app.status === 'active' ? 'ACTIVE' : 'INACTIVE'}
+                      {getStatusValue(app.status).toUpperCase() === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE'}
                     </div>
                   </div>
 
@@ -341,12 +348,12 @@ function ApplicationList() {
                     <td className="px-6 py-4">{app.application_owner}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                        app.status === 'active' 
-                          ? 'bg-emerald-500/10 text-emerald-400' 
-                          : 'bg-slate-500/10 text-slate-400'
+                        getStatusValue(app.status).toUpperCase() === 'ACTIVE' 
+                          ? 'bg-emerald-400/20 text-emerald-400' 
+                          : 'bg-slate-500/20 text-slate-400'
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${app.status === 'active' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
-                        {app.status.toUpperCase()}
+                        <span className={`w-1.5 h-1.5 rounded-full ${getStatusValue(app.status).toUpperCase() === 'ACTIVE' ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                        {getStatusValue(app.status).toUpperCase() || 'UNKNOWN'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">

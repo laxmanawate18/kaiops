@@ -2,21 +2,112 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from typing import List, Optional
 import math
 import uuid
+import os
 from ..auth.dependencies import get_current_user, get_current_admin_user, get_current_admin_or_team_lead
 from ..auth.models import UserResponse
-from ..auth.database import user_db
+from ..auth.database_postgres import user_db
 from .models import (
     ApplicationCreate, ApplicationUpdate, ApplicationResponse, 
     ApplicationListResponse, ApplicationStats, ApplicationStatus,
     ApplicationSearchQuery
 )
-from .database import application_db
+from .database_postgres import application_db
+from .database_postgres_optimized import optimized_application_db
 import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Helper function to build application response
+# Feature flag for optimized queries
+USE_OPTIMIZED_QUERIES = os.getenv("USE_OPTIMIZED_QUERIES", "false").lower() == "true"
+
+if USE_OPTIMIZED_QUERIES:
+    logger.info("✅ Using optimized database queries with JOIN and caching")
+else:
+    logger.info("ℹ️ Using standard database queries (set USE_OPTIMIZED_QUERIES=true to enable optimization)")
+
+# Helper function to build application response (for optimized path)
+def build_application_response_optimized(app: dict) -> ApplicationResponse:
+    """Build ApplicationResponse from app dict with pre-fetched user data (no additional queries)."""
+    try:
+        # User data already fetched via JOIN
+        created_by_username = app.get("created_by_username", "system")
+        updated_by_username = app.get("updated_by_username")
+        
+        # Safely handle cloud_provider enum conversion
+        cloud_provider = app.get("cloud_provider", "gcp")
+        if isinstance(cloud_provider, str):
+            cloud_provider = cloud_provider.lower()
+            if cloud_provider not in ["gcp", "azure", "aws"]:
+                cloud_provider = "gcp"
+        
+        # Safely handle status enum conversion
+        status = app.get("status", "active")
+        if isinstance(status, str):
+            status = status.lower()
+            if status not in ["active", "inactive", "pending", "suspended"]:
+                status = "active"
+        
+        # Ensure custom_metadata is a list of dicts
+        custom_metadata = app.get("custom_metadata", [])
+        if not isinstance(custom_metadata, list):
+            custom_metadata = []
+        
+        # Convert datetime objects to ISO strings
+        created_at = app.get("created_at")
+        updated_at = app.get("updated_at")
+        
+        if created_at and hasattr(created_at, 'isoformat'):
+            created_at = created_at.isoformat()
+        if updated_at and hasattr(updated_at, 'isoformat'):
+            updated_at = updated_at.isoformat()
+        
+        return ApplicationResponse(
+            id=app.get("id") or str(uuid.uuid4()),
+            application_name=app.get("application_name"),
+            github_repo=app.get("github_repo"),
+            argocd_app_name=app.get("argocd_app_name"),
+            grafana_dashboard=app.get("grafana_dashboard"),
+            grafana_alert_name=app.get("grafana_alert_name"),
+            application_owner=app.get("application_owner"),
+            status=status,
+            description=app.get("description"),
+            application_criticality=app.get("application_criticality"),
+            custom_metadata=custom_metadata,
+            cloud_provider=cloud_provider,
+            gcp_project_id=app.get("gcp_project_id"),
+            gke_cluster_name=app.get("gke_cluster_name"),
+            namespace=app.get("namespace", "default"),
+            gcp_log_resource=app.get("gcp_log_resource"),
+            deployment_name=app.get("deployment_name"),
+            pod_name=app.get("pod_name"),
+            aks_cluster_name=app.get("aks_cluster_name"),
+            azure_deployment_name=app.get("azure_deployment_name"),
+            azure_pod_name=app.get("azure_pod_name"),
+            azure_namespace=app.get("azure_namespace"),
+            resource_group=app.get("resource_group"),
+            workspace=app.get("workspace"),
+            workspace_resource_group=app.get("workspace_resource_group"),
+            ingress_name=app.get("ingress_name"),
+            ingress_public_ip=app.get("ingress_public_ip"),
+            ingress_namespace=app.get("ingress_namespace"),
+            eks_cluster_name=app.get("eks_cluster_name"),
+            cloudwatch_log_group_path=app.get("cloudwatch_log_group_path"),
+            aws_deployment_name=app.get("aws_deployment_name"),
+            aws_pod_name=app.get("aws_pod_name"),
+            aws_namespace=app.get("aws_namespace"),
+            created_by=app.get("created_by"),
+            created_by_username=created_by_username,
+            updated_by=app.get("updated_by"),
+            updated_by_username=updated_by_username,
+            created_at=created_at,
+            updated_at=updated_at
+        )
+    except Exception as e:
+        logger.error(f"Error building optimized response: {e}", exc_info=True)
+        raise
+
+# Helper function to build application response (original implementation)
 def build_application_response(app: dict) -> ApplicationResponse:
     """Build ApplicationResponse from database record."""
     try:
@@ -142,9 +233,20 @@ async def create_application(
     """
     try:
         app_dict = app_data.model_dump()
-        application = application_db.create_application(current_user.id, app_dict)
+        # Add created_by to the app_dict before creating
+        app_dict["created_by"] = current_user.id
+        application = application_db.create_application(app_dict)
         
-        return build_application_response(application)
+        # Invalidate cache if using optimized queries
+        if USE_OPTIMIZED_QUERIES:
+            optimized_application_db.invalidate_cache()
+        
+        # Use appropriate response builder
+        if USE_OPTIMIZED_QUERIES and application:
+            app_with_users = optimized_application_db.get_application_with_users(application['id'])
+            return build_application_response_optimized(app_with_users)
+        else:
+            return build_application_response(application)
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -170,29 +272,54 @@ async def list_applications(
     try:
         skip = (page - 1) * page_size
         
-        try:
-            applications, total_count = application_db.list_applications(
-                status=status_filter,
-                owner=owner,
-                cluster=cluster,
-                skip=skip,
-                limit=page_size
-            )
-        except Exception as e:
-            logger.error(f"Database error: {e}", exc_info=True)
-            raise
+        # Use optimized queries if enabled
+        if USE_OPTIMIZED_QUERIES:
+            try:
+                applications, total_count = optimized_application_db.list_applications_with_users(
+                    status=status_filter,
+                    owner=owner,
+                    cluster=cluster,
+                    skip=skip,
+                    limit=page_size
+                )
+                # Use optimized response builder (no additional DB queries)
+                app_responses = [build_application_response_optimized(app) for app in applications]
+            except Exception as e:
+                logger.error(f"Optimized query error, falling back to standard: {e}")
+                # Fallback to standard implementation
+                applications, total_count = application_db.list_applications(
+                    status=status_filter,
+                    owner=owner,
+                    cluster=cluster,
+                    skip=skip,
+                    limit=page_size
+                )
+                app_responses = [build_application_response(app) for app in applications]
+        else:
+            # Standard implementation
+            try:
+                applications, total_count = application_db.list_applications(
+                    status=status_filter,
+                    owner=owner,
+                    cluster=cluster,
+                    skip=skip,
+                    limit=page_size
+                )
+            except Exception as e:
+                logger.error(f"Database error: {e}", exc_info=True)
+                raise
+            
+            app_responses = []
+            for app in applications:
+                try:
+                    app_response = build_application_response(app)
+                    app_responses.append(app_response)
+                except Exception as e:
+                    logger.error(f"Error building response for app {app.get('_id', 'unknown')}: {e}", exc_info=True)
+                    logger.error(f"App data: {app}")
+                    raise
         
         total_pages = math.ceil(total_count / page_size) if total_count > 0 else 1
-        
-        app_responses = []
-        for app in applications:
-            try:
-                app_response = build_application_response(app)
-                app_responses.append(app_response)
-            except Exception as e:
-                logger.error(f"Error building response for app {app.get('_id', 'unknown')}: {e}", exc_info=True)
-                logger.error(f"App data: {app}")
-                raise
         
         return ApplicationListResponse(
             total=total_count,
@@ -215,12 +342,18 @@ async def get_application(
 ):
     """Get application details by ID."""
     try:
-        application = application_db.get_application(app_id)
-        
-        if not application:
-            raise HTTPException(status_code=404, detail="Application not found")
-        
-        return build_application_response(application)
+        # Use optimized query if enabled
+        if USE_OPTIMIZED_QUERIES:
+            application = optimized_application_db.get_application_with_users(app_id)
+            if not application:
+                raise HTTPException(status_code=404, detail="Application not found")
+            return build_application_response_optimized(application)
+        else:
+            # Standard implementation
+            application = application_db.get_application(app_id)
+            if not application:
+                raise HTTPException(status_code=404, detail="Application not found")
+            return build_application_response(application)
         
     except HTTPException:
         raise
@@ -250,7 +383,17 @@ async def update_application(
         
         updated_app = application_db.update_application(app_id, current_user.id, update_dict)
         
-        return build_application_response(updated_app)
+        # Invalidate cache if using optimized queries
+        if USE_OPTIMIZED_QUERIES:
+            optimized_application_db.invalidate_cache(app_id)
+        
+        # Use appropriate response builder
+        if USE_OPTIMIZED_QUERIES:
+            # Fetch with users for optimized response
+            updated_app_with_users = optimized_application_db.get_application_with_users(app_id)
+            return build_application_response_optimized(updated_app_with_users)
+        else:
+            return build_application_response(updated_app)
         
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -321,9 +464,13 @@ async def search_applications(
     Search applications by name, description, owner, repo, or tags.
     """
     try:
-        applications = application_db.search_applications(q, limit)
-        
-        return [build_application_response(app) for app in applications]
+        # Use optimized query if enabled
+        if USE_OPTIMIZED_QUERIES:
+            applications = optimized_application_db.search_applications_with_users(q, limit)
+            return [build_application_response_optimized(app) for app in applications]
+        else:
+            applications = application_db.search_applications(q, limit)
+            return [build_application_response(app) for app in applications]
         
     except Exception as e:
         logger.error(f"Error searching applications: {e}")

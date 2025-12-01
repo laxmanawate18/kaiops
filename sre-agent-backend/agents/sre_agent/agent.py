@@ -80,46 +80,38 @@ model_temperature = float(os.environ.get("MODEL_TEMPERATURE", "0.7"))
 def get_cloud_provider_from_app(app_name: str) -> str:
     """Determine cloud provider for an application from metadata.
     
-    Queries MongoDB directly to get cloud_provider field.
+    Queries PostgreSQL to get cloud_provider field using SQLAlchemy.
     Returns: "azure", "aws", "gcp", or "azure" (default)
     """
     try:
-        from pymongo import MongoClient
-        from app.database import MongoDBConfig, Collections
+        from app.database.postgres_config import PostgresConfig
+        from app.database.models import Application
+        from sqlalchemy import func
         import logging
         
         logger = logging.getLogger(__name__)
         
-        # Get MongoDB connection
-        connection_string = MongoDBConfig.get_connection_string()
-        db_name = MongoDBConfig.get_database_name()
-        
-        mongo_client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
-        db = mongo_client[db_name]
-        
-        # Query applications collection for cloud_provider
-        collection = db[Collections.APPLICATIONS]
-        app = collection.find_one(
-            {
-                "application_name": {
-                    "$regex": f"^{app_name}$",
-                    "$options": "i"
-                }
-            },
-            {"cloud_provider": 1, "application_name": 1}
-        )
-        
-        if app:
-            cloud_provider = app.get("cloud_provider", "")
-            logger.info(f"🔍 Cloud provider lookup: app='{app_name}' -> cloud_provider='{cloud_provider}'")
+        # Get database session
+        session = PostgresConfig.get_session()
+        try:
+            # Query applications table for cloud_provider (case-insensitive)
+            app = session.query(Application).filter(
+                func.lower(Application.application_name) == func.lower(app_name)
+            ).first()
             
-            if cloud_provider:
-                provider_lower = str(cloud_provider).lower()
-                if provider_lower in ["azure", "aws", "gcp"]:
-                    logger.info(f"✅ Routing to {provider_lower.upper()} RCA agent")
-                    return provider_lower
-        
-        logger.warning(f"⚠️ Cloud provider not found for {app_name}, defaulting to Azure")
+            if app:
+                cloud_provider = app.cloud_provider or ""
+                logger.info(f"🔍 Cloud provider lookup: app='{app_name}' -> cloud_provider='{cloud_provider}'")
+                
+                if cloud_provider:
+                    provider_lower = str(cloud_provider).lower()
+                    if provider_lower in ["azure", "aws", "gcp"]:
+                        logger.info(f"✅ Routing to {provider_lower.upper()} RCA agent")
+                        return provider_lower
+            
+            logger.warning(f"⚠️ Cloud provider not found for {app_name}, defaulting to Azure")
+        finally:
+            session.close()
     except Exception as e:
         # Log the error but continue with default
         import logging

@@ -14,7 +14,7 @@ from .models import (
     UpdateSessionRequest, DeleteSessionResponse,
     ChatStatsResponse, ChatSession, ChatMessage, MessageSender
 )
-from .database import chat_db
+from .database_postgres import chat_db
 import logging
 
 logger = logging.getLogger(__name__)
@@ -209,7 +209,7 @@ async def send_message(
         agent_message = chat_db.add_message(
             user_id=current_user.id,
             session_id=request.session_id,
-            sender=MessageSender.AGENT,
+            sender=MessageSender.ASSISTANT,
             text=agent_response_text,
             metadata=agent_metadata
         )

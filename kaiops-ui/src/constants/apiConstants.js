@@ -39,17 +39,18 @@ export const PermissionType = {
 }
 
 export const FeedbackType = {
-  THUMBS_UP: "thumbs_up",
-  THUMBS_DOWN: "thumbs_down",
-  COPY: "copy",
-  REWRITE: "rewrite"
+  THUMBS_UP: "THUMBS_UP",
+  THUMBS_DOWN: "THUMBS_DOWN",
+  COPY: "COPY",
+  REWRITE: "REWRITE",
+  FEATURE_REQUEST: "FEATURE_REQUEST"
 }
 
 export const FeedbackStatus = {
-  PENDING: "pending",
-  APPROVED: "approved",
-  DENIED: "denied",
-  RECLASSIFIED: "reclassified"
+  PENDING: "PENDING",
+  APPROVED: "APPROVED",
+  DENIED: "DENIED",
+  RECLASSIFIED: "RECLASSIFIED"
 }
 
 export const FeedbackCategory = {
@@ -68,5 +69,8 @@ export const DatasetType = {
   BOTH: "both"
 }
 
-// API Base URL - Use relative path, nginx will proxy to backend
-export const API_BASE_URL = '/api/v1'
+// API Base URL Configuration
+// - Development: Uses relative path '/api/v1' via Vite proxy (see vite.config.js)
+// - Production: Uses VITE_API_URL env var set during Docker build
+// - Build with: docker build --build-arg VITE_API_URL=http://<BACKEND_IP>:8000/api/v1
+export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1'

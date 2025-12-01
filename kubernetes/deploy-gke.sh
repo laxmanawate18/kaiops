@@ -89,8 +89,6 @@ print_section "STEP 4: Creating Kubernetes Secrets"
 
 echo -e "${YELLOW}Creating secret for sensitive data...${NC}"
 kubectl create secret generic kaiops-secrets -n kaiops \
-  --from-literal=MONGODB_URI="$MONGODB_URI" \
-  --from-literal=MONGODB_DATABASE="sre_agent_db" \
   --from-literal=SECRET_KEY="$(openssl rand -base64 32)" \
   --from-literal=ALGORITHM="HS256" \
   --from-literal=ACCESS_TOKEN_EXPIRE_MINUTES="30" \

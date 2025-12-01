@@ -10,7 +10,7 @@ from .models import (
     ApplicationSearchQuery,
     ApplicationHealthCheck
 )
-from .database import application_db
+from .database_postgres import application_db
 from .routes import router
 
 __all__ = [

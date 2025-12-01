@@ -30,7 +30,7 @@ steps:
       - '-t'
       - 'gcr.io/$PROJECT_ID/kaiops-frontend:latest'
       - '--build-arg'
-      - 'VITE_API_URL=http://api.kaiops-sre.searceinc.net/api/v1'
+      - 'VITE_API_URL=http://34.70.16.109:8000/api/v1'
       - '-f'
       - 'kubernetes/Dockerfile.frontend'
       - '.'

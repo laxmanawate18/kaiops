@@ -6,8 +6,8 @@ from .models import (
     TeamAssignment, TeamAssignmentResponse, AgentType, AgentPriority,
     SystemStats, AgentStats
 )
-from .database import user_db
-from .team_database import team_db
+from .database_postgres import user_db
+from .team_database_postgres import team_db
 from .dependencies import get_current_user, get_current_admin_user
 from .models import UserResponse, UserRole
 import logging

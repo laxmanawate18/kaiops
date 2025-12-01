@@ -21,11 +21,11 @@ data:
   # Application
   AGENT_DIR: "/app/agents"
   
-  # PostgreSQL (Cloud SQL) Configuration for ADK Sessions
-  POSTGRES_USER: "adk_user"
+  # PostgreSQL (Cloud SQL) Configuration for SRE Agent
+  POSTGRES_USER: "sre_user"
   POSTGRES_HOST: "34.9.74.83"
   POSTGRES_PORT: "5432"
-  POSTGRES_DB: "adk_sessions"
+  POSTGRES_DB: "sre_agent_db"
   
   # Allowed origins for CORS
   # Frontend domain mapped to 34.44.48.149, API domain mapped to 34.70.16.109

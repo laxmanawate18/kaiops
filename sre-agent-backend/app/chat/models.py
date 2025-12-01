@@ -12,7 +12,7 @@ from enum import Enum
 class MessageSender(str, Enum):
     """Message sender types."""
     USER = "user"
-    AGENT = "agent"
+    ASSISTANT = "assistant"
     SYSTEM = "system"
 
 

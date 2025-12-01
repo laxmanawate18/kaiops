@@ -3,16 +3,17 @@ from typing import Optional, List
 from enum import Enum
 
 class FeedbackType(str, Enum):
-    THUMBS_UP = "thumbs_up"
-    THUMBS_DOWN = "thumbs_down"
-    COPY = "copy"
-    REWRITE = "rewrite"
+    THUMBS_UP = "THUMBS_UP"
+    THUMBS_DOWN = "THUMBS_DOWN"
+    COPY = "COPY"
+    REWRITE = "REWRITE"
+    FEATURE_REQUEST = "FEATURE_REQUEST"
 
 class FeedbackStatus(str, Enum):
-    PENDING = "pending"
-    APPROVED = "approved"
-    DENIED = "denied"
-    RECLASSIFIED = "reclassified"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    DENIED = "DENIED"
+    RECLASSIFIED = "RECLASSIFIED"
 
 class FeedbackCategory(str, Enum):
     ACCURACY = "accuracy"
@@ -54,15 +55,15 @@ class FeedbackReview(BaseModel):
 # Response Models
 class FeedbackResponse(BaseModel):
     id: str
-    conversation_id: str
-    message_id: str
+    conversation_id: Optional[str] = None  # Optional for backward compatibility
+    message_id: Optional[str] = None  # Optional for backward compatibility
     user_id: str
     username: str
-    user_message: str
-    ai_response: str
+    user_message: Optional[str] = None  # Optional for backward compatibility
+    ai_response: Optional[str] = None  # Optional for backward compatibility
     feedback_type: FeedbackType
     rating: Optional[int] = None
-    tags: List[FeedbackCategory]
+    tags: List[FeedbackCategory] = Field(default_factory=list)
     comment: Optional[str] = None
     suggested_response: Optional[str] = None
     status: FeedbackStatus
