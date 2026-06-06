@@ -1,13 +1,13 @@
 {
-  "type": "service_account",
-  "project_id": "carbon-relic-479214-c1",
-  "private_key_id": "4484b149786ba2b93f1c71b278090d3ae523eb00",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCi7pNbaAzN9fan\n+U+6pVYohvasjzImNe+Tn08tH2CxGvN6h840F8lVV+G/PdKUrTE1HOfB7ToFz9Fd\n6AuuosMY1DdIbAED81KPdYE+6YUjE+U0W5KSdD0g0DdsiISpMb3VVFODfY6z1R47\nhe8s8JAps04fPkjjTXwVVn38vmQoinkDl1J8Lr0vQGCPvUqLl8z94Ls5wFagbdHg\nOUDGKzzEdFOQYxp6fcNalKF4lX+0yHNx/34Wi4hifYuJsvqnQDwyzjtprpbGclj2\n1i+6SnbKvpjuoSZ9tGYJQhywcsmfIz6jc7wHbhb2QYxuhx4GefY0HNWle9V8ztFs\ngs0MC08TAgMBAAECggEAAeaPkH7nu1VVscLuQ6qfFSzx3rRy7NAvQcUXetrFWXuL\ngI/p/2CRqC20w/LYLITSsKBsMa5vQVcZxaMp07kxVm5PUMh1wJKLkYHY5p95vp2C\nTHiO/qddeS8Enn7/MSwT31Oy/7MswXtIdYBL+HW78MiXLjUfS4uBWYxfPt4HtBNY\nqGcUniDmJeYaVLwiTJOHOCQwUMDAIeXEsHARWXzLuwpGVZoZXi8DvmTLDAKm8TAb\njSv8WzfdWOB93ZYFC8TfPt2/LOtYkbqY3ccAuwrpwwUDBkdHPbnYE2kPJ8GNhc6s\nJc9gNguj19c1nMiU7GdEd9sfr/NpqqncdsVfjTQdxQKBgQDjBfDsOz3TduiBop20\noRfCkuoYtmjIfDEyUqUxv0Ogx2SAkk3Hw7KjKItKJyCmjlH0C+dbw9hJWnl+KUQy\n1ksIiEg4ntd61WFmPNPrYalCaIAxO35uXYFe1wKroCdyenPqOYo1att4dYgW2Kwi\nNR32d13BQCTx/7J2BnqM1YtJzwKBgQC3um5NvSsV/T2B48JQ3VS+rs2hBpW1xdb2\n4eB6VLX6I5GfzOGY8JiWGL4EgZwK7jCZbJyPwPZdFnf/9NBZDGw9TBh/eMrj/r1e\nbQj2JC0S65ynOdCsEcWYcKdkvFejCSk7zrJvMqO7+hfnxlhRttdwCpIGzx8YXvbP\nYhGE1VWrfQKBgHidWHH5y5BFFaSCRC2KhPggW/WDPEqACRdGZ3P1vTV3mkLg+CgR\nJiCfUtmzzhoPdSUnCeVsOMZIJlJMFGq6BaVj2pMSeUNOiO/rk1/0RBv/L1R42mRC\nk5BSxZ1vemXM/zbLGU3mFvJ55zLULSgDdobSxmH89WQJSMSCDqwybE1rAoGBAK2O\nsmZDXbEvAWxzD/u9qTFcBamog8Irus6LP7ev0BwUf5saOr50AWBAzTeKjDKTIVu9\niwQNP21eLUugIzULlDAvczDvlZHc8VyC2aVTNTUbV2dtKR9yxlsjiC2T8aF0pPv3\nXP3IM33+WZi7+HBwrYEMqzc9b11hT/tF49C8imotAoGAEBJFaJ6h9kS1i12PwiVM\nU8RbAcKdOSp+jZqY7RQr8nvY5D4I0k4XKfDNYt1KZAh1LHBE8YwaSjQUCVNin+AA\nPxZ3xcgUXHsLPcOJrH6N+GqcnnIOyNCakbb8Kh/pUdwPY5ruxygNPKK9rdUo6Obv\n+NVWRsPHhnbu1p6DSjTD+Fo=\n-----END PRIVATE KEY-----\n",
-  "client_email": "kaiops@carbon-relic-479214-c1.iam.gserviceaccount.com",
-  "client_id": "102201747264814519224",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/kaiops%40carbon-relic-479214-c1.iam.gserviceaccount.com",
-  "universe_domain": "googleapis.com"
+  "type": 
+  "project_id": "",
+  "private_key_id": "",
+  "private_key": ""
+  "client_email": "",
+  "client_id": "",
+  "auth_uri":
+  "token_uri": 
+  "auth_provider_x509_cert_url": 
+  "client_x509_cert_url": "",
+  "universe_domain": 
 }
